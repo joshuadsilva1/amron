@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "202141749117",
+    "project_id": "oemamron",
+    "storage_bucket": "oemamron.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:202141749117:android:d8118e86083742d9c44614",
+        "android_client_info": {
+          "package_name": "com.joshuamorrris.oemmobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBS4jIDXVPEcD0-eZDk72Sil2kFDmSImwo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
