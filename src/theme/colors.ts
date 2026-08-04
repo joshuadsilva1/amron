@@ -1,9 +1,9 @@
 const colors = {
-  primary: "#2C8CFB",
-  primaryLight: "#5CACFA",
-  navy: "#2C4C71",
+  primary: "#2c8cfb",
+  primaryLight: "#5cacfa",
+  navy: "#2c4c71",
   secondary: "#446285",
-  border: "#A5B8CC",
+  border: "#a5b8cc",
 
   white: "#FFFFFF",
   background: "#F8FAFC",

@@ -1,59 +1,19 @@
 import React from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-} from "react-native";
+import { View, TextInput, Text, StyleSheet, TextInputProps } from "react-native";
 
-import CountryPicker, {
-  Country,
-} from "react-native-country-picker-modal";
+// By extending TextInputProps, this component will seamlessly 
+// accept anything react-hook-form throws at it!
 
-import colors from "@/theme/colors";
-
-interface Props {
-  value: string;
-  onChange(value: string): void;
-}
-
-export default function PhoneInput({
-  value,
-  onChange,
-}: Props) {
-  const [countryCode, setCountryCode] = React.useState("IN");
-  const [callingCode, setCallingCode] = React.useState("91");
-
-  const onSelect = (country: Country) => {
-    setCountryCode(country.cca2);
-    setCallingCode(country.callingCode[0]);
-  };
-
+export default function PhoneInput(props: TextInputProps) {
   return (
     <View style={styles.container}>
-      <View style={styles.country}>
-        <CountryPicker
-          withFlag
-          withCallingCode
-          withFilter
-          countryCode={countryCode}
-          onSelect={onSelect}
-        />
-
-        <Text style={styles.code}>
-          +{callingCode}
-        </Text>
-      </View>
-
+      <Text style={styles.prefix}>+91</Text>
       <TextInput
-        placeholder="Mobile Number"
-        keyboardType="number-pad"
-        value={value}
-        maxLength={10}
-        onChangeText={(text) =>
-          onChange(text.replace(/\D/g, ""))
-        }
         style={styles.input}
+        placeholder="Enter mobile number"
+        keyboardType="phone-pad"
+        maxLength={10}
+        {...props} 
       />
     </View>
   );
@@ -62,51 +22,23 @@ export default function PhoneInput({
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
-
-    borderRadius: 18,
-
-    backgroundColor: "white",
-
-    borderWidth: 1,
-
-    borderColor: colors.border,
-
-    overflow: "hidden",
-
-    height: 60,
-  },
-
-  country: {
-    width: 115,
-
-    justifyContent: "center",
-
     alignItems: "center",
-
-    flexDirection: "row",
-
-    borderRightWidth: 1,
-
-    borderRightColor: colors.border,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    height: 50,
+    backgroundColor: "#fff",
   },
-
-  code: {
-    marginLeft: 5,
-
-    fontWeight: "600",
-
-    color: colors.navy,
-
+  prefix: {
     fontSize: 16,
+    fontWeight: "600",
+    marginRight: 10,
+    color: "#333",
   },
-
   input: {
     flex: 1,
-
-    paddingHorizontal: 18,
-
-    fontSize: 18,
-
-    color: colors.navy,
+    fontSize: 16,
+    color: "#000",
   },
 });

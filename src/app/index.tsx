@@ -1,6 +1,6 @@
 import React from "react";
 
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, ScrollView, View } from "react-native";
 
 import { router } from "expo-router";
 
@@ -16,32 +16,52 @@ export default function Index() {
     bootstrap();
   }, []);
 
-  async function bootstrap() {
+async function bootstrap() {
     const session = await getSession();
 
-    if (session) {
-      restore(
-        session.user,
-        session.token
-      );
+    if (session && session.user && session.token) {
+      restore(session.user, session.token);
 
-      router.replace("/(protected)/dashboard");
+      const userRole = session.user.role?.toUpperCase();
+
+      switch (userRole) {
+        case "ADMIN":
+          router.replace("/(protected)/admin");
+          break;
+        case "PRODUCTION_MANAGER":
+          router.replace("/(protected)/manager");
+          break;
+        case "QUALITY_HEAD":
+          router.replace("/(protected)/quality");
+          break;
+        case "MOULDING":
+        case "BRASSPART":
+        case "FITTING":
+        case "LASER":
+          router.replace("/(protected)/floor-worker"); 
+          break;
+        case "DISPATCH":
+          router.replace("/(protected)/dispatch");
+          break;
+        default:
+          router.replace("/(protected)/dashboard");
+      }
     } else {
       setLoading(false);
-
       router.replace("/(auth)/login");
     }
   }
 
   return (
-    <View
-      style={{
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
+    <ScrollView 
+  style={{ flex: 1 }}
+  contentContainerStyle={{ 
+    flexGrow: 1, 
+    justifyContent: "center", 
+    alignItems: "center" 
+  }}
+>
       <ActivityIndicator size="large" />
-    </View>
+    </ScrollView>
   );
 }

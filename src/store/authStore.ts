@@ -1,9 +1,19 @@
 import { create } from "zustand";
 
+interface Module {
+  name: string;
+  route: string;
+  icon: string;
+  description: string;
+}
+
 interface User {
-  id: number;
+  id: string; // Changed to string to match your Flask UUID
   phone: string;
   name?: string;
+  role?: string;
+  department_id?: string;
+  modules?: Module[]; // Injected dynamically from the backend
 }
 
 interface AuthState {

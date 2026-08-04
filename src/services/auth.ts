@@ -1,20 +1,22 @@
-import auth, {
-  FirebaseAuthTypes,
-} from "@react-native-firebase/auth";
+import { auth } from "@/services/firebaseConfig"; // Ensure this path is correct
+import { signInWithPhoneNumber, ConfirmationResult, signOut, ApplicationVerifier } from "firebase/auth";
 
 class AuthService {
-  async sendOTP(phone: string) {
-    const confirmation = await auth().signInWithPhoneNumber(phone);
-
+  // ⚠️ Note: The Web SDK requires an 'appVerifier' (reCAPTCHA) to prevent spam.
+  // You will pass this in from your login screen!
+  async sendOTP(phone: string, appVerifier: ApplicationVerifier) {
+    const confirmation = await signInWithPhoneNumber(auth, phone, appVerifier);
     return confirmation;
   }
 
   async verifyOTP(
-    confirmation: FirebaseAuthTypes.ConfirmationResult,
+    confirmation: ConfirmationResult,
     code: string
   ) {
+    // The confirm method works exactly the same in the Web SDK!
     const credential = await confirmation.confirm(code);
 
+    // Get the JWT token
     const token = await credential.user.getIdToken(true);
 
     return {
@@ -24,7 +26,7 @@ class AuthService {
   }
 
   async logout() {
-    await auth().signOut();
+    await signOut(auth);
   }
 }
 
