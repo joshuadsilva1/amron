@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, StyleSheet, KeyboardAvoidingView } from "react-native";
 import Alert from "@/utils/alert";
 import { router } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-import { getAuth, signInWithPhoneNumber } from "@react-native-firebase/auth";
+import { auth } from "@/services/firebaseConfig";
+import { signInWithPhoneNumber, RecaptchaVerifier } from "firebase/auth";
 
 import { PhoneForm, phoneSchema } from "@/utils/validation";
 import PhoneInput from "@/components/auth/PhoneInput";
@@ -36,10 +37,11 @@ export default function LoginScreen() {
       const digitsOnly = data.phone.replace(/\D/g, '');
       const formattedPhone = digitsOnly.length === 10 ? `+91${digitsOnly}` : `+${digitsOnly}`;
 
-      // Native phone auth verifies via Play Integrity (Android) / silent
-      // APNs push (iOS) under the hood — no reCAPTCHA/WebView bridge needed
-      // here, unlike the web flow.
-      const confirmation = await signInWithPhoneNumber(getAuth(), formattedPhone);
+      const verifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+        size: "invisible",
+      });
+
+      const confirmation = await signInWithPhoneNumber(auth, formattedPhone, verifier);
 
       router.push({
         pathname: "/(auth)/otp",
@@ -57,10 +59,13 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
+    <KeyboardAvoidingView style={styles.container}>
+      {/*
+        This empty view has a nativeID. On the web, it becomes a <div> with id="recaptcha-container".
+        Firebase requires this to attach its invisible Web reCAPTCHA.
+      */}
+      <View nativeID="recaptcha-container" />
+
       <View style={styles.formContainer}>
         <Text style={styles.title}>Welcome Back</Text>
         <Text style={styles.subtitle}>Sign in with your mobile number</Text>

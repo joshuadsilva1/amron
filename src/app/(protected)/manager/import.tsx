@@ -390,7 +390,7 @@ export default function ImportExcelPage() {
 
       // Use native fetch (axios would force a JSON Content-Type that breaks
       // the multipart boundary for file uploads)
-      const baseUrl = api.defaults.baseURL || 'http://192.168.1.2:5000/api';
+      const baseUrl = api.defaults.baseURL;
       const uploadRes = await fetch(`${baseUrl}/import/${module.endpoint}/${encodeURIComponent(department.name)}`, {
         method: 'POST',
         headers: {

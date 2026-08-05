@@ -43,6 +43,9 @@ async function bootstrap() {
         case "DISPATCH":
           router.replace("/(protected)/dispatch");
           break;
+        case "PENDING":
+          router.replace("/(auth)/pending");
+          break;
         default:
           router.replace("/(protected)/dashboard");
       }

@@ -6,7 +6,7 @@ import { clearSession, getSession } from "@/utils/storage"; // Import getSession
 // Set EXPO_PUBLIC_API_URL in .env to point at a deployed backend (e.g. the
 // Render URL). Falls back to the local LAN dev server when unset.
 const api = axios.create({
-  baseURL: process.env.EXPO_PUBLIC_API_URL || "http://192.168.1.2:5000/api",
+  baseURL: process.env.EXPO_PUBLIC_API_URL,
   timeout: 15000,
   headers: {
     "Content-Type": "application/json",

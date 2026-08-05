@@ -3,7 +3,9 @@ import { View, Text, StyleSheet, ScrollView } from "react-native";
 import Alert from "@/utils/alert";
 import { router, useLocalSearchParams } from "expo-router";
 
-import { getAuth, PhoneAuthProvider, signInWithCredential } from "@react-native-firebase/auth";
+// 1. Correct Web SDK Imports
+import { auth } from "@/services/firebaseConfig"; 
+import { PhoneAuthProvider, signInWithCredential } from "firebase/auth"; 
 
 import { saveSession } from "@/utils/storage";
 import OTPInput from "@/components/auth/OTPInput";
@@ -19,12 +21,12 @@ export default function OTPScreen() {
   }>();
 
   const login = useAuthStore((state) => state.login);
-
+  
   const [verifying, setVerifying] = useState(false);
   const [loading, setLoading] = useState(false);
   const [otp, setOTP] = useState("");
   const [seconds, setSeconds] = useState(30);
-
+  
   const [activeVerificationId, setActiveVerificationId] = useState<string>(verificationId);
 
   useEffect(() => {
@@ -43,6 +45,9 @@ export default function OTPScreen() {
 
   async function sendOTP() {
     if (seconds > 0) return;
+    
+    // NOTE: In the Web SDK, resending an OTP requires passing the reCAPTCHA verifier again.
+    // For now, we will alert the user to go back to the login screen to get a new code.
     Alert.alert("Timeout", "Please go back to the previous screen to request a new code.");
   }
 
@@ -60,8 +65,13 @@ export default function OTPScreen() {
     try {
       setVerifying(true);
 
+      // 2. WEB SDK SYNTAX: Create credential using PhoneAuthProvider directly
       const credential = PhoneAuthProvider.credential(activeVerificationId, otp);
-      const userCredential = await signInWithCredential(getAuth(), credential);
+      
+      // 3. WEB SDK SYNTAX: Pass the 'auth' instance into the sign-in function
+      const userCredential = await signInWithCredential(auth, credential);
+      
+      // 4. Get Token
       const token = await userCredential.user.getIdToken();
 
       // Login to Flask backend
@@ -93,14 +103,14 @@ export default function OTPScreen() {
   }
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
+    <ScrollView 
+      style={{ flex: 1, backgroundColor: colors.background }} 
       contentContainerStyle={styles.container}
     >
       <Text style={styles.title}>Verify Phone</Text>
       <Text style={styles.subtitle}>We've sent a 6-digit verification code to</Text>
-
-      <Text style={styles.phone}>{phone}</Text>
+      
+      <Text style={styles.phone}>{phone}</Text> 
 
       <OTPInput
         value={otp}
@@ -125,7 +135,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "center",
     padding: 24,
-    backgroundColor: colors.background,
+    backgroundColor: colors.background, 
   },
   title: {
     fontSize: 30,

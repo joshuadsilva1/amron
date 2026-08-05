@@ -207,7 +207,7 @@ export default function RoutingEditorScreen() {
           <View style={StyleSheet.absoluteFill}>
             <Svg width="3000" height="3000">
               <Defs>
-                <Marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <Marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
                   <Polygon points="0,0 10,5 0,10" fill="#94A3B8" />
                 </Marker>
               </Defs>
