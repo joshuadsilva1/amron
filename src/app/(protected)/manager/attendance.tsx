@@ -220,36 +220,38 @@ export default function AttendancePage() {
         </View>
 
         {/* Attendance Table */}
-        <View style={styles.tableCard}>
-          <View style={styles.tableHeader}>
-            <SortableHeaderCell label="EMPLOYEE" active={sortKey === "name"} direction={sortDir} onPress={() => toggleSort("name")} textStyle={styles.columnHeader} containerStyle={{ flex: 2 }} />
-            <SortableHeaderCell label="DEPT" active={sortKey === "department"} direction={sortDir} onPress={() => toggleSort("department")} textStyle={styles.columnHeader} containerStyle={{ flex: 1 }} />
-            <SortableHeaderCell label="STATUS" active={sortKey === "status"} direction={sortDir} onPress={() => toggleSort("status")} textStyle={styles.columnHeader} containerStyle={{ flex: 1 }} />
-            <SortableHeaderCell label="OT HRS" active={sortKey === "ot_hours"} direction={sortDir} onPress={() => toggleSort("ot_hours")} textStyle={styles.columnHeader} containerStyle={{ width: 100 }} />
-          </View>
-
-          {loading ? (
-             <ActivityIndicator size="large" color="#8B5CF6" style={{ marginVertical: 60 }} />
-          ) : attendanceData.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No employees yet. Add your first.</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
+          <View style={styles.tableCard}>
+            <View style={styles.tableHeader}>
+              <SortableHeaderCell label="EMPLOYEE" active={sortKey === "name"} direction={sortDir} onPress={() => toggleSort("name")} textStyle={styles.columnHeader} containerStyle={{ flex: 1, minWidth: 180 }} />
+              <SortableHeaderCell label="DEPT" active={sortKey === "department"} direction={sortDir} onPress={() => toggleSort("department")} textStyle={styles.columnHeader} containerStyle={{ width: 120 }} />
+              <SortableHeaderCell label="STATUS" active={sortKey === "status"} direction={sortDir} onPress={() => toggleSort("status")} textStyle={styles.columnHeader} containerStyle={{ width: 100 }} />
+              <SortableHeaderCell label="OT HRS" active={sortKey === "ot_hours"} direction={sortDir} onPress={() => toggleSort("ot_hours")} textStyle={styles.columnHeader} containerStyle={{ width: 100 }} />
             </View>
-          ) : (
-            sortedAttendance.map((emp) => (
-              <View key={emp.employee_id} style={styles.tableRow}>
-                <Text style={[styles.cellText, { flex: 2, fontWeight: "600", color: "#111111" }]}>{emp.name}</Text>
-                <Text style={[styles.cellText, { flex: 1 }]}>{emp.department}</Text>
-                <View style={{ flex: 1 }}>
-                  {/* Read-only representation for now */}
-                  <Text style={[styles.cellText, !emp.status && { color: "#9CA3AF" }]}>{emp.status || "Unmarked"}</Text>
-                </View>
-                <View style={{ width: 100 }}>
-                   <Text style={[styles.cellText, !emp.ot_hours && { color: "#9CA3AF" }]}>{emp.ot_hours || "0"}</Text>
-                </View>
+
+            {loading ? (
+               <ActivityIndicator size="large" color="#8B5CF6" style={{ marginVertical: 60 }} />
+            ) : attendanceData.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>No employees yet. Add your first.</Text>
               </View>
-            ))
-          )}
-        </View>
+            ) : (
+              sortedAttendance.map((emp) => (
+                <View key={emp.employee_id} style={styles.tableRow}>
+                  <Text style={[styles.cellText, { flex: 1, minWidth: 180, fontWeight: "600", color: "#111111" }]}>{emp.name}</Text>
+                  <Text style={[styles.cellText, { width: 120 }]}>{emp.department}</Text>
+                  <View style={{ width: 100 }}>
+                    {/* Read-only representation for now */}
+                    <Text style={[styles.cellText, !emp.status && { color: "#9CA3AF" }]}>{emp.status || "Unmarked"}</Text>
+                  </View>
+                  <View style={{ width: 100 }}>
+                     <Text style={[styles.cellText, !emp.ot_hours && { color: "#9CA3AF" }]}>{emp.ot_hours || "0"}</Text>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        </ScrollView>
 
       </ScrollView>
 
@@ -352,7 +354,8 @@ const styles = StyleSheet.create({
   summaryText: { fontSize: 15, color: "#6B7280" },
 
   // --- Table ---
-  tableCard: { flex: 1, backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 2, minHeight: 300 },
+  tableWrapper: { width: "100%" },
+  tableCard: { minWidth: 600, flex: 1, backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 2, minHeight: 300 },
   tableHeader: { flexDirection: "row", backgroundColor: "#F9FAFB", paddingVertical: 16, paddingHorizontal: spacing.xl, borderBottomWidth: 1, borderBottomColor: "#E5E7EB", borderTopLeftRadius: 16, borderTopRightRadius: 16 },
   columnHeader: { fontSize: 12, fontWeight: "700", color: "#6B7280", letterSpacing: 0.5 },
   tableRow: { flexDirection: "row", alignItems: "center", paddingVertical: 16, paddingHorizontal: spacing.xl, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },

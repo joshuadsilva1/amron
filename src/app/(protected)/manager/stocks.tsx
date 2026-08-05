@@ -115,6 +115,24 @@ export default function StocksReportPage() {
     }
   };
 
+  // Fixed pixel widths per column (used instead of flex ratios so the table
+  // can scroll horizontally on narrow screens instead of squeezing columns
+  // illegibly). The last currently-visible column still gets flex: 1 so the
+  // table fills remaining width on wide/web screens.
+  const COLUMN_WIDTHS: Record<keyof typeof columns, number> = {
+    code: 100,
+    itemName: 180,
+    in: 80,
+    out: 80,
+    periodNet: 110,
+    liveStock: 110,
+    price: 90,
+  };
+  const COLUMN_ORDER: (keyof typeof columns)[] = ["code", "itemName", "in", "out", "periodNet", "liveStock", "price"];
+  const lastVisibleColumn = [...COLUMN_ORDER].reverse().find((key) => columns[key]);
+  const getColumnStyle = (key: keyof typeof columns) =>
+    key === lastVisibleColumn ? { flex: 1, minWidth: COLUMN_WIDTHS[key] } : { width: COLUMN_WIDTHS[key] };
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.contentArea} showsVerticalScrollIndicator={false}>
@@ -239,63 +257,65 @@ export default function StocksReportPage() {
                 const filteredItems = sortedStockItems.filter((item) => item.department_id === dept.id);
 
                 return (
-                  <View key={dept.id} style={styles.tableCard}>
-                    {/* Table Section Header */}
-                    <View style={styles.tableSectionTitleBar}>
-                      <Text style={styles.tableSectionTitleText}>{dept.name}</Text>
-                    </View>
-
-                    {/* Table Column Headers */}
-                    <View style={styles.tableHeaderRow}>
-                      {columns.code && (
-                        <SortableHeaderCell
-                          label="CODE" active={sortKey === "item_code"} direction={sortDir}
-                          onPress={() => toggleSort("item_code")}
-                          textStyle={styles.tableHeaderCell} containerStyle={{ flex: 1.2 }}
-                        />
-                      )}
-                      {columns.itemName && (
-                        <SortableHeaderCell
-                          label="ITEM NAME" active={sortKey === "name"} direction={sortDir}
-                          onPress={() => toggleSort("name")}
-                          textStyle={styles.tableHeaderCell} containerStyle={{ flex: 3 }}
-                        />
-                      )}
-                      {columns.in && <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'right' }]}>IN</Text>}
-                      {columns.out && <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'right' }]}>OUT</Text>}
-                      {columns.periodNet && <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'right' }]}>PERIOD NET</Text>}
-                      {columns.liveStock && (
-                        <SortableHeaderCell
-                          label="LIVE STOCK" active={sortKey === "current_stock"} direction={sortDir}
-                          onPress={() => toggleSort("current_stock")}
-                          textStyle={styles.tableHeaderCell} containerStyle={{ flex: 1, justifyContent: 'flex-end' }}
-                        />
-                      )}
-                      {columns.price && <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'right' }]}>PRICE</Text>}
-                    </View>
-
-                    {filteredItems.length === 0 ? (
-                      <View style={styles.emptyRow}>
-                        <Text style={styles.emptyRowText}>No items in this department.</Text>
+                  <ScrollView key={dept.id} horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
+                    <View style={styles.tableCard}>
+                      {/* Table Section Header */}
+                      <View style={styles.tableSectionTitleBar}>
+                        <Text style={styles.tableSectionTitleText}>{dept.name}</Text>
                       </View>
-                    ) : (
-                      filteredItems.map((item) => (
-                        <View key={item.id} style={styles.tableDataRow}>
-                          {columns.code && <Text style={[styles.tableDataCell, { flex: 1.2, fontWeight: "600" }]}>{item.item_code}</Text>}
-                          {columns.itemName && <Text style={[styles.tableDataCell, { flex: 3 }]}>{item.name}</Text>}
-                          {columns.in && <Text style={[styles.tableDataCell, { flex: 1, textAlign: 'right' }]}>0</Text>}
-                          {columns.out && <Text style={[styles.tableDataCell, { flex: 1, textAlign: 'right' }]}>0</Text>}
-                          {columns.periodNet && <Text style={[styles.tableDataCell, { flex: 1, textAlign: 'right' }]}>0</Text>}
-                          {columns.liveStock && (
-                            <Text style={[styles.tableDataCell, { flex: 1, textAlign: 'right', fontWeight: "700", color: "#111111" }]}>
-                              {item.current_stock}
-                            </Text>
-                          )}
-                          {columns.price && <Text style={[styles.tableDataCell, { flex: 1, textAlign: 'right' }]}>-</Text>}
+
+                      {/* Table Column Headers */}
+                      <View style={styles.tableHeaderRow}>
+                        {columns.code && (
+                          <SortableHeaderCell
+                            label="CODE" active={sortKey === "item_code"} direction={sortDir}
+                            onPress={() => toggleSort("item_code")}
+                            textStyle={styles.tableHeaderCell} containerStyle={getColumnStyle("code")}
+                          />
+                        )}
+                        {columns.itemName && (
+                          <SortableHeaderCell
+                            label="ITEM NAME" active={sortKey === "name"} direction={sortDir}
+                            onPress={() => toggleSort("name")}
+                            textStyle={styles.tableHeaderCell} containerStyle={getColumnStyle("itemName")}
+                          />
+                        )}
+                        {columns.in && <Text style={[styles.tableHeaderCell, getColumnStyle("in"), { textAlign: 'right' }]}>IN</Text>}
+                        {columns.out && <Text style={[styles.tableHeaderCell, getColumnStyle("out"), { textAlign: 'right' }]}>OUT</Text>}
+                        {columns.periodNet && <Text style={[styles.tableHeaderCell, getColumnStyle("periodNet"), { textAlign: 'right' }]}>PERIOD NET</Text>}
+                        {columns.liveStock && (
+                          <SortableHeaderCell
+                            label="LIVE STOCK" active={sortKey === "current_stock"} direction={sortDir}
+                            onPress={() => toggleSort("current_stock")}
+                            textStyle={styles.tableHeaderCell} containerStyle={[getColumnStyle("liveStock"), { justifyContent: 'flex-end' }]}
+                          />
+                        )}
+                        {columns.price && <Text style={[styles.tableHeaderCell, getColumnStyle("price"), { textAlign: 'right' }]}>PRICE</Text>}
+                      </View>
+
+                      {filteredItems.length === 0 ? (
+                        <View style={styles.emptyRow}>
+                          <Text style={styles.emptyRowText}>No items in this department.</Text>
                         </View>
-                      ))
-                    )}
-                  </View>
+                      ) : (
+                        filteredItems.map((item) => (
+                          <View key={item.id} style={styles.tableDataRow}>
+                            {columns.code && <Text style={[styles.tableDataCell, getColumnStyle("code"), { fontWeight: "600" }]}>{item.item_code}</Text>}
+                            {columns.itemName && <Text style={[styles.tableDataCell, getColumnStyle("itemName")]}>{item.name}</Text>}
+                            {columns.in && <Text style={[styles.tableDataCell, getColumnStyle("in"), { textAlign: 'right' }]}>0</Text>}
+                            {columns.out && <Text style={[styles.tableDataCell, getColumnStyle("out"), { textAlign: 'right' }]}>0</Text>}
+                            {columns.periodNet && <Text style={[styles.tableDataCell, getColumnStyle("periodNet"), { textAlign: 'right' }]}>0</Text>}
+                            {columns.liveStock && (
+                              <Text style={[styles.tableDataCell, getColumnStyle("liveStock"), { textAlign: 'right', fontWeight: "700", color: "#111111" }]}>
+                                {item.current_stock}
+                              </Text>
+                            )}
+                            {columns.price && <Text style={[styles.tableDataCell, getColumnStyle("price"), { textAlign: 'right' }]}>-</Text>}
+                          </View>
+                        ))
+                      )}
+                    </View>
+                  </ScrollView>
                 );
               })
             )}
@@ -352,7 +372,8 @@ const styles = StyleSheet.create({
   checkboxLabel: { fontSize: 14, color: "#374151", fontWeight: "500" },
 
   // Tables
-  tableCard: { backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", overflow: "hidden", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 2 },
+  tableWrapper: { width: "100%" },
+  tableCard: { minWidth: 850, flex: 1, backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", overflow: "hidden", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 2 },
   tableSectionTitleBar: { backgroundColor: "#1E293B", paddingVertical: 12, paddingHorizontal: 20 },
   tableSectionTitleText: { color: colors.white, fontSize: 15, fontWeight: "700" },
   

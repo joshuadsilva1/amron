@@ -10,6 +10,7 @@ import OTPInput from "@/components/auth/OTPInput";
 import ResendTimer from "@/components/auth/ResendTimer";
 import { backendLogin } from "@/services/backendAuth";
 import useAuthStore from "@/store/authStore";
+import { getRouteForRole } from "@/utils/roleRouting";
 import colors from "@/theme/colors";
 
 export default function OTPScreen() {
@@ -72,16 +73,7 @@ export default function OTPScreen() {
       login(backend.user, backend.access_token);
 
       // Routing Logic
-      const userRole = backend.user.role?.toUpperCase() || "USER";
-      const roleRoutes: Record<string, string> = {
-        "ADMIN": "/(protected)/admin",
-        "PRODUCTION_MANAGER": "/(protected)/manager",
-        "QUALITY_HEAD": "/(protected)/quality",
-        "DISPATCH": "/(protected)/dispatch",
-        "PENDING": "/(auth)/pending",
-      };
-
-      const nextRoute = roleRoutes[userRole] || (userRole === "USER" ? "/(auth)/pending" : "/(protected)/floor-worker");
+      const nextRoute = getRouteForRole(backend.user.role);
       router.replace(nextRoute as any);
 
     } catch (error: any) {

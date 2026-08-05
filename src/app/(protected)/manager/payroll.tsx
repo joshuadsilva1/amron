@@ -150,48 +150,50 @@ export default function EmployeePayrollPage() {
         </View>
 
         {/* Payroll Table */}
-        <View style={styles.tableCard}>
-          <View style={styles.tableHeader}>
-            <SortableHeaderCell label="EMPLOYEE" active={sortKey === "worker_name"} direction={sortDir} onPress={() => toggleSort("worker_name")} textStyle={styles.columnHeader} containerStyle={{ flex: 2 }} />
-            <Text style={[styles.columnHeader, { flex: 1.5 }]}>DEPT</Text>
-            <SortableHeaderCell label="BASE" active={sortKey === "base_salary"} direction={sortDir} onPress={() => toggleSort("base_salary")} textStyle={styles.columnHeader} containerStyle={{ flex: 1 }} />
-            <Text style={[styles.columnHeader, { flex: 1.5 }]}>P / H / A / OT</Text>
-            <SortableHeaderCell label="WORKED" active={sortKey === "total_days_worked"} direction={sortDir} onPress={() => toggleSort("total_days_worked")} textStyle={styles.columnHeader} containerStyle={{ flex: 1 }} />
-            <Text style={[styles.columnHeader, { flex: 1 }]}>OT HRS</Text>
-            <SortableHeaderCell label="PAYOUT" active={sortKey === "total_payable"} direction={sortDir} onPress={() => toggleSort("total_payable")} textStyle={styles.columnHeader} containerStyle={{ flex: 1, justifyContent: 'flex-end' }} />
-          </View>
-
-          {loading ? (
-             <ActivityIndicator size="large" color="#8B5CF6" style={{ marginVertical: 60 }} />
-          ) : payrollData.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No employees yet.</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
+          <View style={styles.tableCard}>
+            <View style={styles.tableHeader}>
+              <SortableHeaderCell label="EMPLOYEE" active={sortKey === "worker_name"} direction={sortDir} onPress={() => toggleSort("worker_name")} textStyle={styles.columnHeader} containerStyle={{ width: 180 }} />
+              <Text style={[styles.columnHeader, { width: 100 }]}>DEPT</Text>
+              <SortableHeaderCell label="BASE" active={sortKey === "base_salary"} direction={sortDir} onPress={() => toggleSort("base_salary")} textStyle={styles.columnHeader} containerStyle={{ width: 110 }} />
+              <Text style={[styles.columnHeader, { width: 140 }]}>P / H / A / OT</Text>
+              <SortableHeaderCell label="WORKED" active={sortKey === "total_days_worked"} direction={sortDir} onPress={() => toggleSort("total_days_worked")} textStyle={styles.columnHeader} containerStyle={{ width: 90 }} />
+              <Text style={[styles.columnHeader, { width: 90 }]}>OT HRS</Text>
+              <SortableHeaderCell label="PAYOUT" active={sortKey === "total_payable"} direction={sortDir} onPress={() => toggleSort("total_payable")} textStyle={styles.columnHeader} containerStyle={{ flex: 1, minWidth: 120, justifyContent: 'flex-end' }} />
             </View>
-          ) : (
-            sortedPayroll.map((record) => (
-              <View key={record.user_id} style={styles.tableRow}>
-                <Text style={[styles.cellText, { flex: 2, fontWeight: "600", color: "#111111" }]}>{record.worker_name}</Text>
-                
-                {/* Fallbacks for fields not currently in your API model */}
-                <Text style={[styles.cellText, { flex: 1.5 }]}>-</Text>
-                
-                <Text style={[styles.cellText, { flex: 1 }]}>{formatCurrency(record.base_salary)}</Text>
-                
-                {/* Fallback for stats */}
-                <Text style={[styles.cellText, { flex: 1.5, color: "#6B7280" }]}>-</Text>
-                
-                <Text style={[styles.cellText, { flex: 1 }]}>{record.total_days_worked}</Text>
-                
-                {/* Fallback for OT */}
-                <Text style={[styles.cellText, { flex: 1 }]}>-</Text>
-                
-                <Text style={[styles.cellText, { flex: 1, textAlign: 'right', fontWeight: "700", color: "#111111" }]}>
-                  {formatCurrency(record.total_payable)}
-                </Text>
+
+            {loading ? (
+               <ActivityIndicator size="large" color="#8B5CF6" style={{ marginVertical: 60 }} />
+            ) : payrollData.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>No employees yet.</Text>
               </View>
-            ))
-          )}
-        </View>
+            ) : (
+              sortedPayroll.map((record) => (
+                <View key={record.user_id} style={styles.tableRow}>
+                  <Text style={[styles.cellText, { width: 180, fontWeight: "600", color: "#111111" }]}>{record.worker_name}</Text>
+
+                  {/* Fallbacks for fields not currently in your API model */}
+                  <Text style={[styles.cellText, { width: 100 }]}>-</Text>
+
+                  <Text style={[styles.cellText, { width: 110 }]}>{formatCurrency(record.base_salary)}</Text>
+
+                  {/* Fallback for stats */}
+                  <Text style={[styles.cellText, { width: 140, color: "#6B7280" }]}>-</Text>
+
+                  <Text style={[styles.cellText, { width: 90 }]}>{record.total_days_worked}</Text>
+
+                  {/* Fallback for OT */}
+                  <Text style={[styles.cellText, { width: 90 }]}>-</Text>
+
+                  <Text style={[styles.cellText, { flex: 1, minWidth: 120, textAlign: 'right', fontWeight: "700", color: "#111111" }]}>
+                    {formatCurrency(record.total_payable)}
+                  </Text>
+                </View>
+              ))
+            )}
+          </View>
+        </ScrollView>
 
       </ScrollView>
     </View>
@@ -228,7 +230,8 @@ const styles = StyleSheet.create({
   totalPayoutValue: { fontSize: 20, fontWeight: "900", color: "#111111" },
 
   // --- Table ---
-  tableCard: { flex: 1, backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 2, minHeight: 300 },
+  tableWrapper: { width: "100%" },
+  tableCard: { minWidth: 850, flex: 1, backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 2, minHeight: 300 },
   tableHeader: { flexDirection: "row", backgroundColor: "#F9FAFB", paddingVertical: 16, paddingHorizontal: spacing.xl, borderBottomWidth: 1, borderBottomColor: "#E5E7EB", borderTopLeftRadius: 16, borderTopRightRadius: 16 },
   columnHeader: { fontSize: 12, fontWeight: "700", color: "#6B7280", letterSpacing: 0.5 },
   tableRow: { flexDirection: "row", alignItems: "center", paddingVertical: 16, paddingHorizontal: spacing.xl, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },

@@ -250,13 +250,14 @@ export default function OEMConversionPage() {
             <ActivityIndicator size="large" color="#8B5CF6" style={{ marginVertical: 60 }} />
           ) : activeTab === "client_wise" ? (
             // --- CLIENT WISE VIEW ---
-            <View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
+            <View style={styles.clientTableInner}>
               <View style={styles.tableHeader}>
-                <SortableHeaderCell label="CLIENT & CHALAN" active={clientOrdersSort.sortKey === "client_name"} direction={clientOrdersSort.sortDir} onPress={() => clientOrdersSort.toggleSort("client_name")} textStyle={styles.columnHeader} containerStyle={{ flex: 2 }} />
-                <SortableHeaderCell label="OEM PRODUCT" active={clientOrdersSort.sortKey === "oem_name"} direction={clientOrdersSort.sortDir} onPress={() => clientOrdersSort.toggleSort("oem_name")} textStyle={styles.columnHeader} containerStyle={{ flex: 3 }} />
-                <SortableHeaderCell label="DUE DATE" active={clientOrdersSort.sortKey === "due_date"} direction={clientOrdersSort.sortDir} onPress={() => clientOrdersSort.toggleSort("due_date")} textStyle={styles.columnHeader} containerStyle={{ flex: 1.5 }} />
-                <SortableHeaderCell label="QTY" active={clientOrdersSort.sortKey === "quantity"} direction={clientOrdersSort.sortDir} onPress={() => clientOrdersSort.toggleSort("quantity")} textStyle={styles.columnHeader} containerStyle={{ flex: 1, justifyContent: "flex-end" }} />
-                <SortableHeaderCell label="STATUS" active={clientOrdersSort.sortKey === "status"} direction={clientOrdersSort.sortDir} onPress={() => clientOrdersSort.toggleSort("status")} textStyle={styles.columnHeader} containerStyle={{ flex: 1.5, justifyContent: "center" }} />
+                <SortableHeaderCell label="CLIENT & CHALAN" active={clientOrdersSort.sortKey === "client_name"} direction={clientOrdersSort.sortDir} onPress={() => clientOrdersSort.toggleSort("client_name")} textStyle={styles.columnHeader} containerStyle={{ width: 220 }} />
+                <SortableHeaderCell label="OEM PRODUCT" active={clientOrdersSort.sortKey === "oem_name"} direction={clientOrdersSort.sortDir} onPress={() => clientOrdersSort.toggleSort("oem_name")} textStyle={styles.columnHeader} containerStyle={{ width: 260 }} />
+                <SortableHeaderCell label="DUE DATE" active={clientOrdersSort.sortKey === "due_date"} direction={clientOrdersSort.sortDir} onPress={() => clientOrdersSort.toggleSort("due_date")} textStyle={styles.columnHeader} containerStyle={{ width: 120 }} />
+                <SortableHeaderCell label="QTY" active={clientOrdersSort.sortKey === "quantity"} direction={clientOrdersSort.sortDir} onPress={() => clientOrdersSort.toggleSort("quantity")} textStyle={styles.columnHeader} containerStyle={{ width: 90, justifyContent: "flex-end" }} />
+                <SortableHeaderCell label="STATUS" active={clientOrdersSort.sortKey === "status"} direction={clientOrdersSort.sortDir} onPress={() => clientOrdersSort.toggleSort("status")} textStyle={styles.columnHeader} containerStyle={{ flex: 1, minWidth: 140, justifyContent: "center" }} />
               </View>
 
               {clientOrders.length === 0 ? (
@@ -268,7 +269,7 @@ export default function OEMConversionPage() {
                   const statusStyle = STATUS_COLORS[po.status] || STATUS_COLORS.Pending;
                   return (
                     <View key={po.line_item_id} style={styles.tableRow}>
-                      <View style={{ flex: 2 }}>
+                      <View style={{ width: 220 }}>
                         <Text style={styles.cellTitle}>{po.client_name}</Text>
                         <Text style={styles.cellSubtitle}>{po.chalan_no || "No chalan #"}</Text>
                         {po.is_urgent && (
@@ -278,24 +279,24 @@ export default function OEMConversionPage() {
                         )}
                       </View>
 
-                      <View style={{ flex: 3 }}>
+                      <View style={{ width: 260 }}>
                         <Text style={styles.cellTitle}>{po.oem_name || po.oem_code}</Text>
                         <Text style={styles.cellSubtitle}>
                           OEM Code: {po.oem_code} → {po.internal_code || "N/A"}
                         </Text>
                       </View>
 
-                      <View style={{ flex: 1.5 }}>
+                      <View style={{ width: 120 }}>
                         <Text style={styles.cellTitle}>{po.due_date ? po.due_date.slice(0, 10) : "—"}</Text>
                       </View>
 
-                      <View style={{ flex: 1 }}>
+                      <View style={{ width: 90 }}>
                         <Text style={[styles.cellTitle, { textAlign: "right", fontWeight: "700" }]}>
                           {po.quantity.toLocaleString()}
                         </Text>
                       </View>
 
-                      <View style={{ flex: 1.5, alignItems: "center" }}>
+                      <View style={{ flex: 1, minWidth: 140, alignItems: "center" }}>
                         <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
                           <Text style={[styles.statusBadgeText, { color: statusStyle.text }]}>
                             {po.status.replace("_", " ")}
@@ -307,14 +308,16 @@ export default function OEMConversionPage() {
                 })
               )}
             </View>
+            </ScrollView>
           ) : activeTab === "aggregated" ? (
             // --- AGGREGATED VIEW ---
-            <View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
+            <View style={styles.aggregatedTableInner}>
               <View style={styles.tableHeader}>
-                <SortableHeaderCell label="INTERNAL CODE" active={aggregatedSort.sortKey === "internal_code"} direction={aggregatedSort.sortDir} onPress={() => aggregatedSort.toggleSort("internal_code")} textStyle={styles.columnHeader} containerStyle={{ flex: 1.5 }} />
-                <SortableHeaderCell label="INTERNAL PRODUCT NAME" active={aggregatedSort.sortKey === "product_name"} direction={aggregatedSort.sortDir} onPress={() => aggregatedSort.toggleSort("product_name")} textStyle={styles.columnHeader} containerStyle={{ flex: 3 }} />
-                <SortableHeaderCell label="CATEGORY" active={aggregatedSort.sortKey === "category"} direction={aggregatedSort.sortDir} onPress={() => aggregatedSort.toggleSort("category")} textStyle={styles.columnHeader} containerStyle={{ flex: 2 }} />
-                <SortableHeaderCell label="TOTAL QTY" active={aggregatedSort.sortKey === "total_quantity_to_manufacture"} direction={aggregatedSort.sortDir} onPress={() => aggregatedSort.toggleSort("total_quantity_to_manufacture")} textStyle={styles.columnHeader} containerStyle={{ flex: 1.5, justifyContent: "flex-end" }} />
+                <SortableHeaderCell label="INTERNAL CODE" active={aggregatedSort.sortKey === "internal_code"} direction={aggregatedSort.sortDir} onPress={() => aggregatedSort.toggleSort("internal_code")} textStyle={styles.columnHeader} containerStyle={{ width: 130 }} />
+                <SortableHeaderCell label="INTERNAL PRODUCT NAME" active={aggregatedSort.sortKey === "product_name"} direction={aggregatedSort.sortDir} onPress={() => aggregatedSort.toggleSort("product_name")} textStyle={styles.columnHeader} containerStyle={{ width: 280 }} />
+                <SortableHeaderCell label="CATEGORY" active={aggregatedSort.sortKey === "category"} direction={aggregatedSort.sortDir} onPress={() => aggregatedSort.toggleSort("category")} textStyle={styles.columnHeader} containerStyle={{ width: 180 }} />
+                <SortableHeaderCell label="TOTAL QTY" active={aggregatedSort.sortKey === "total_quantity_to_manufacture"} direction={aggregatedSort.sortDir} onPress={() => aggregatedSort.toggleSort("total_quantity_to_manufacture")} textStyle={styles.columnHeader} containerStyle={{ flex: 1, minWidth: 140, justifyContent: "flex-end" }} />
               </View>
 
               {aggregatedOrders.length === 0 ? (
@@ -324,21 +327,21 @@ export default function OEMConversionPage() {
               ) : (
                 aggregatedSort.sorted.map((agg, idx) => (
                   <View key={idx} style={styles.tableRow}>
-                    <View style={{ flex: 1.5 }}>
+                    <View style={{ width: 130 }}>
                       <Text style={[styles.cellTitle, { color: "#8B5CF6", fontWeight: "700" }]}>
                         {agg.internal_code || "N/A"}
                       </Text>
                     </View>
 
-                    <View style={{ flex: 3 }}>
+                    <View style={{ width: 280 }}>
                       <Text style={styles.cellTitle}>{agg.product_name}</Text>
                     </View>
 
-                    <View style={{ flex: 2 }}>
+                    <View style={{ width: 180 }}>
                       <Text style={styles.cellSubtitle}>{agg.category}</Text>
                     </View>
 
-                    <View style={{ flex: 1.5 }}>
+                    <View style={{ flex: 1, minWidth: 140 }}>
                       <Text style={[styles.cellTitle, { textAlign: "right", fontWeight: "900", fontSize: 16 }]}>
                         {agg.total_quantity_to_manufacture.toLocaleString()}
                       </Text>
@@ -347,14 +350,16 @@ export default function OEMConversionPage() {
                 ))
               )}
             </View>
+            </ScrollView>
           ) : (
             // --- OEM MAPPINGS VIEW ---
-            <View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
+            <View style={styles.mappingsTableInner}>
               <View style={styles.tableHeader}>
-                <SortableHeaderCell label="CLIENT" active={mappingsSort.sortKey === "party_name"} direction={mappingsSort.sortDir} onPress={() => mappingsSort.toggleSort("party_name")} textStyle={styles.columnHeader} containerStyle={{ flex: 2 }} />
-                <SortableHeaderCell label="THEIR CODE / PRODUCT" active={mappingsSort.sortKey === "party_code"} direction={mappingsSort.sortDir} onPress={() => mappingsSort.toggleSort("party_code")} textStyle={styles.columnHeader} containerStyle={{ flex: 2.5 }} />
-                <SortableHeaderCell label="INTERNAL PRODUCT" active={mappingsSort.sortKey === "internal_product"} direction={mappingsSort.sortDir} onPress={() => mappingsSort.toggleSort("internal_product")} textStyle={styles.columnHeader} containerStyle={{ flex: 2.5 }} />
-                <Text style={[styles.columnHeader, { flex: 1.5 }]}>PACKAGING</Text>
+                <SortableHeaderCell label="CLIENT" active={mappingsSort.sortKey === "party_name"} direction={mappingsSort.sortDir} onPress={() => mappingsSort.toggleSort("party_name")} textStyle={styles.columnHeader} containerStyle={{ width: 180 }} />
+                <SortableHeaderCell label="THEIR CODE / PRODUCT" active={mappingsSort.sortKey === "party_code"} direction={mappingsSort.sortDir} onPress={() => mappingsSort.toggleSort("party_code")} textStyle={styles.columnHeader} containerStyle={{ width: 220 }} />
+                <SortableHeaderCell label="INTERNAL PRODUCT" active={mappingsSort.sortKey === "internal_product"} direction={mappingsSort.sortDir} onPress={() => mappingsSort.toggleSort("internal_product")} textStyle={styles.columnHeader} containerStyle={{ width: 220 }} />
+                <Text style={[styles.columnHeader, { flex: 1, minWidth: 140 }]}>PACKAGING</Text>
               </View>
 
               {mappings.length === 0 ? (
@@ -364,18 +369,18 @@ export default function OEMConversionPage() {
               ) : (
                 mappingsSort.sorted.map((m) => (
                   <View key={m.id} style={styles.tableRow}>
-                    <View style={{ flex: 2 }}>
+                    <View style={{ width: 180 }}>
                       <Text style={styles.cellTitle}>{m.party_name}</Text>
                     </View>
-                    <View style={{ flex: 2.5 }}>
+                    <View style={{ width: 220 }}>
                       <Text style={styles.cellTitle}>{m.party_code}</Text>
                       {m.client_product_name && <Text style={styles.cellSubtitle}>{m.client_product_name}</Text>}
                     </View>
-                    <View style={{ flex: 2.5 }}>
+                    <View style={{ width: 220 }}>
                       <Text style={styles.cellTitle}>{m.internal_product}</Text>
                       {m.internal_code && <Text style={styles.cellSubtitle}>{m.internal_code}</Text>}
                     </View>
-                    <View style={{ flex: 1.5 }}>
+                    <View style={{ flex: 1, minWidth: 140 }}>
                       <Text style={styles.cellSubtitle}>
                         {m.box_type ? `${m.box_type}${m.pieces_per_box ? ` (${m.pieces_per_box}/box)` : ""}` : "-"}
                       </Text>
@@ -384,6 +389,7 @@ export default function OEMConversionPage() {
                 ))
               )}
             </View>
+            </ScrollView>
           )}
         </View>
 
@@ -501,6 +507,10 @@ const styles = StyleSheet.create({
 
   // Table
   tableCard: { backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 2, overflow: "hidden", minHeight: 400 },
+  tableWrapper: { width: "100%" },
+  clientTableInner: { minWidth: 900, flex: 1 },
+  aggregatedTableInner: { minWidth: 750, flex: 1 },
+  mappingsTableInner: { minWidth: 800, flex: 1 },
   tableHeader: { flexDirection: "row", backgroundColor: "#F9FAFB", paddingVertical: 16, paddingHorizontal: 24, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
   columnHeader: { fontSize: 12, fontWeight: "700", color: "#6B7280", letterSpacing: 0.5 },
   tableRow: { flexDirection: "row", paddingVertical: 16, paddingHorizontal: 24, borderBottomWidth: 1, borderBottomColor: "#F3F4F6", alignItems: "center" },

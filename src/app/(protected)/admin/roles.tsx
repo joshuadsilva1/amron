@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, Switch, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, Pressable, ScrollView, Switch, ActivityIndicator, useWindowDimensions } from "react-native";
 import Alert from "@/utils/alert";
 import { Feather } from "@expo/vector-icons";
 import api from "@/services/api";
@@ -20,6 +20,9 @@ interface Role {
 }
 
 export default function RolesAndPermissionsScreen() {
+  const { width } = useWindowDimensions();
+  const isLargeScreen = width >= 768;
+
   const [roles, setRoles] = useState<Role[]>([]);
   const [allPermissions, setAllPermissions] = useState<Permission[]>([]);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
@@ -129,9 +132,9 @@ export default function RolesAndPermissionsScreen() {
         <Text style={styles.subtitle}>Manage granular access controls across the entire system.</Text>
       </View>
 
-      <View style={styles.content}>
+      <View style={[styles.content, !isLargeScreen && styles.contentMobile]}>
         {/* Left Column: Roles List */}
-        <View style={styles.rolesColumn}>
+        <View style={[styles.rolesColumn, !isLargeScreen && styles.rolesColumnMobile]}>
           <Text style={styles.columnHeader}>System Roles</Text>
           <ScrollView>
             {roles.map((role) => {
@@ -170,7 +173,7 @@ export default function RolesAndPermissionsScreen() {
         </View>
 
         {/* Right Column: Dynamic Toggles */}
-        <View style={styles.permissionsColumn}>
+        <View style={[styles.permissionsColumn, !isLargeScreen && styles.permissionsColumnMobile]}>
           {!selectedRole ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateText}>Select a role to view permissions.</Text>
@@ -229,8 +232,10 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 14, color: "#6B7280", marginTop: 4 },
   
   content: { flex: 1, flexDirection: "row", gap: spacing.xl },
-  
+  contentMobile: { flexDirection: "column" },
+
   rolesColumn: { width: 280, backgroundColor: "#ffffff", borderRadius: 12, padding: spacing.md, borderWidth: 1, borderColor: "#E5E7EB", elevation: 2 },
+  rolesColumnMobile: { width: "100%", maxHeight: 260 },
   columnHeader: { fontSize: 16, fontWeight: "700", color: "#374151", marginBottom: spacing.md, paddingHorizontal: spacing.sm },
   roleCard: { padding: spacing.md, borderRadius: 8, marginBottom: spacing.sm, backgroundColor: "#F3F4F6" },
   roleCardRow: { flexDirection: "row", alignItems: "center" },
@@ -240,6 +245,7 @@ const styles = StyleSheet.create({
   roleDesc: { fontSize: 12, color: "#9CA3AF", marginTop: 4 },
 
   permissionsColumn: { flex: 1, backgroundColor: "#ffffff", borderRadius: 12, padding: spacing.xl, borderWidth: 1, borderColor: "#E5E7EB", elevation: 2 },
+  permissionsColumnMobile: { padding: spacing.lg },
   emptyState: { flex: 1, justifyContent: "center", alignItems: "center" },
   emptyStateText: { color: "#9CA3AF", fontSize: 16, fontStyle: "italic" },
   

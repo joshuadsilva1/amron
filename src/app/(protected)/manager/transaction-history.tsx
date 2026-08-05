@@ -194,45 +194,47 @@ export default function TransactionHistoryPage() {
         </View>
 
         {/* Transaction Table / Empty State Container */}
-        <View style={styles.tableCard}>
-          {loading ? (
-            <ActivityIndicator size="large" color="#8B5CF6" style={{ marginVertical: 80 }} />
-          ) : filteredTransactions.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No transactions found.</Text>
-            </View>
-          ) : (
-            <View>
-              <View style={styles.tableHeader}>
-                <SortableHeaderCell label="CHALLAN" active={sortKey === "challan_number"} direction={sortDir} onPress={() => toggleSort("challan_number")} textStyle={styles.columnHeader} containerStyle={{ flex: 1.5 }} />
-                <SortableHeaderCell label="PRODUCT" active={sortKey === "product_name"} direction={sortDir} onPress={() => toggleSort("product_name")} textStyle={styles.columnHeader} containerStyle={{ flex: 2 }} />
-                <SortableHeaderCell label="TYPE" active={sortKey === "transaction_type"} direction={sortDir} onPress={() => toggleSort("transaction_type")} textStyle={styles.columnHeader} containerStyle={{ flex: 1 }} />
-                <SortableHeaderCell label="QTY" active={sortKey === "quantity"} direction={sortDir} onPress={() => toggleSort("quantity")} textStyle={styles.columnHeader} containerStyle={{ flex: 1 }} />
-                <SortableHeaderCell label="DEPARTMENT" active={sortKey === "department_name"} direction={sortDir} onPress={() => toggleSort("department_name")} textStyle={styles.columnHeader} containerStyle={{ flex: 1.5 }} />
-                <SortableHeaderCell label="DATE" active={sortKey === "created_at"} direction={sortDir} onPress={() => toggleSort("created_at")} textStyle={styles.columnHeader} containerStyle={{ flex: 1.5 }} />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
+          <View style={styles.tableCard}>
+            {loading ? (
+              <ActivityIndicator size="large" color="#8B5CF6" style={{ marginVertical: 80 }} />
+            ) : filteredTransactions.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>No transactions found.</Text>
               </View>
-
-              {sortedTransactions.map((tx) => (
-                <View key={tx.id || Math.random()} style={styles.tableRow}>
-                  <Text style={[styles.cellText, { flex: 1.5, fontWeight: "600" }]}>{tx.challan_number || "-"}</Text>
-                  <Text style={[styles.cellText, { flex: 2 }]}>{tx.product_name || "-"}</Text>
-                  <View style={{ flex: 1 }}>
-                    <View style={[styles.typeBadge, { backgroundColor: tx.transaction_type === "IN" ? "#DEF7EC" : "#FDE8E8" }]}>
-                      <Text style={[styles.typeBadgeText, { color: tx.transaction_type === "IN" ? "#03543F" : "#9B1C1C" }]}>
-                        {tx.transaction_type}
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={[styles.cellText, { flex: 1, fontWeight: "700" }]}>{tx.quantity}</Text>
-                  <Text style={[styles.cellText, { flex: 1.5 }]}>{tx.department_name || "-"}</Text>
-                  <Text style={[styles.cellText, { flex: 1.5, color: "#6B7280" }]}>
-                    {tx.created_at ? new Date(tx.created_at).toLocaleDateString() : "-"}
-                  </Text>
+            ) : (
+              <View>
+                <View style={styles.tableHeader}>
+                  <SortableHeaderCell label="CHALLAN" active={sortKey === "challan_number"} direction={sortDir} onPress={() => toggleSort("challan_number")} textStyle={styles.columnHeader} containerStyle={{ width: 130 }} />
+                  <SortableHeaderCell label="PRODUCT" active={sortKey === "product_name"} direction={sortDir} onPress={() => toggleSort("product_name")} textStyle={styles.columnHeader} containerStyle={{ width: 180 }} />
+                  <SortableHeaderCell label="TYPE" active={sortKey === "transaction_type"} direction={sortDir} onPress={() => toggleSort("transaction_type")} textStyle={styles.columnHeader} containerStyle={{ width: 90 }} />
+                  <SortableHeaderCell label="QTY" active={sortKey === "quantity"} direction={sortDir} onPress={() => toggleSort("quantity")} textStyle={styles.columnHeader} containerStyle={{ width: 80 }} />
+                  <SortableHeaderCell label="DEPARTMENT" active={sortKey === "department_name"} direction={sortDir} onPress={() => toggleSort("department_name")} textStyle={styles.columnHeader} containerStyle={{ width: 150 }} />
+                  <SortableHeaderCell label="DATE" active={sortKey === "created_at"} direction={sortDir} onPress={() => toggleSort("created_at")} textStyle={styles.columnHeader} containerStyle={{ flex: 1, minWidth: 110 }} />
                 </View>
-              ))}
-            </View>
-          )}
-        </View>
+
+                {sortedTransactions.map((tx) => (
+                  <View key={tx.id || Math.random()} style={styles.tableRow}>
+                    <Text style={[styles.cellText, { width: 130, fontWeight: "600" }]}>{tx.challan_number || "-"}</Text>
+                    <Text style={[styles.cellText, { width: 180 }]}>{tx.product_name || "-"}</Text>
+                    <View style={{ width: 90 }}>
+                      <View style={[styles.typeBadge, { backgroundColor: tx.transaction_type === "IN" ? "#DEF7EC" : "#FDE8E8" }]}>
+                        <Text style={[styles.typeBadgeText, { color: tx.transaction_type === "IN" ? "#03543F" : "#9B1C1C" }]}>
+                          {tx.transaction_type}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={[styles.cellText, { width: 80, fontWeight: "700" }]}>{tx.quantity}</Text>
+                    <Text style={[styles.cellText, { width: 150 }]}>{tx.department_name || "-"}</Text>
+                    <Text style={[styles.cellText, { flex: 1, minWidth: 110, color: "#6B7280" }]}>
+                      {tx.created_at ? new Date(tx.created_at).toLocaleDateString() : "-"}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            )}
+          </View>
+        </ScrollView>
 
       </ScrollView>
     </View>
@@ -265,7 +267,8 @@ const styles = StyleSheet.create({
   placeholderText: { color: "#9CA3AF" },
 
   // Table Card & Empty State
-  tableCard: { flex: 1, backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 2, minHeight: 300, overflow: "hidden" },
+  tableWrapper: { width: "100%" },
+  tableCard: { minWidth: 800, flex: 1, backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 2, minHeight: 300, overflow: "hidden" },
   emptyState: { flex: 1, justifyContent: "center", alignItems: "center", paddingVertical: 100 },
   emptyStateText: { fontSize: 15, color: "#6B7280" },
 

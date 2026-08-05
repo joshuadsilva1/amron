@@ -16,6 +16,10 @@ export default function RoutingEditorScreen() {
   const [nodePositions, setNodePositions] = useState<{ [key: string]: NodePosition }>({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  // Sized to fit the actual diagram instead of a fixed 3000x3000 — on a
+  // small department count that used to mean panning through mostly-empty
+  // space to find anything, especially bad on a phone screen.
+  const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 600 });
 
   // We use a ref to safely store the starting X coordinate for centering 
   // without risking stale closures during drag events.
@@ -72,6 +76,16 @@ export default function RoutingEditorScreen() {
       
       setNodePositions(initialPositions);
       setHasUnsavedChanges(false);
+
+      // Fit the canvas to whatever was actually laid out, with a floor so
+      // it never shrinks below one screen width/height.
+      const positionValues = Object.values(initialPositions);
+      const maxX = positionValues.length > 0 ? Math.max(...positionValues.map((p) => p.x)) : 0;
+      const maxY = positionValues.length > 0 ? Math.max(...positionValues.map((p) => p.y)) : 0;
+      setCanvasSize({
+        width: Math.max(screenWidth, maxX + nodeWidth + 100),
+        height: Math.max(600, maxY + 64 + 100),
+      });
     } catch (error) {
       console.error("Fetch error:", error);
       Alert.alert("Error", "Failed to fetch routing data.");
@@ -203,9 +217,9 @@ export default function RoutingEditorScreen() {
       </View>
 
       <ScrollView horizontal bounces={false} style={styles.scrollWrapper}>
-        <ScrollView bounces={false} contentContainerStyle={styles.canvas}>
+        <ScrollView bounces={false} contentContainerStyle={[styles.canvas, canvasSize]}>
           <View style={StyleSheet.absoluteFill}>
-            <Svg width="3000" height="3000">
+            <Svg width={canvasSize.width} height={canvasSize.height}>
               <Defs>
                 <Marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
                   <Polygon points="0,0 10,5 0,10" fill="#94A3B8" />
@@ -325,7 +339,7 @@ const styles = StyleSheet.create({
   },
 
   scrollWrapper: { flex: 1 },
-  canvas: { width: 3000, height: 3000, position: "relative" }, 
+  canvas: { position: "relative" },
   
   nodeWrapper: { position: "absolute", width: 160, height: 64 },
   node: {

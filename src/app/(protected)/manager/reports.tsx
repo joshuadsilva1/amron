@@ -213,35 +213,36 @@ export default function ReportsPage() {
         </View>
 
         {/* Data Table */}
-        <View style={styles.tableCard}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
+          <View style={styles.tableCard}>
           <View style={styles.tableHeader}>
             <SortableHeaderCell
               label="CODE" active={activeSort.sortKey === (activeTab === "stock" ? "item_code" : "id")} direction={activeSort.sortDir}
               onPress={() => (activeTab === "stock" ? stockSort.toggleSort("item_code") : urgentSort.toggleSort("id"))}
-              textStyle={styles.columnHeader} containerStyle={{ flex: 1.5 }}
+              textStyle={styles.columnHeader} containerStyle={{ width: 140 }}
             />
             <SortableHeaderCell
               label="NAME" active={activeSort.sortKey === (activeTab === "stock" ? "name" : "supplier_name")} direction={activeSort.sortDir}
               onPress={() => (activeTab === "stock" ? stockSort.toggleSort("name") : urgentSort.toggleSort("supplier_name"))}
-              textStyle={styles.columnHeader} containerStyle={{ flex: 3 }}
+              textStyle={styles.columnHeader} containerStyle={{ width: 280 }}
             />
             {activeTab === "stock" ? (
               <SortableHeaderCell
                 label="CATEGORY" active={activeSort.sortKey === "category"} direction={activeSort.sortDir}
                 onPress={() => activeSort.toggleSort("category")}
-                textStyle={styles.columnHeader} containerStyle={{ flex: 2 }}
+                textStyle={styles.columnHeader} containerStyle={{ width: 180 }}
               />
             ) : (
-              <Text style={[styles.columnHeader, { flex: 2 }]}>CATEGORY</Text>
+              <Text style={[styles.columnHeader, { width: 180 }]}>CATEGORY</Text>
             )}
             {activeTab === "stock" ? (
               <SortableHeaderCell
                 label="IN STOCK" active={activeSort.sortKey === "current_stock"} direction={activeSort.sortDir}
                 onPress={() => activeSort.toggleSort("current_stock")}
-                textStyle={styles.columnHeader} containerStyle={{ flex: 1, justifyContent: 'flex-end' }}
+                textStyle={styles.columnHeader} containerStyle={{ flex: 1, minWidth: 140, justifyContent: 'flex-end' }}
               />
             ) : (
-              <Text style={[styles.columnHeader, { flex: 1, textAlign: 'right' }]}>IN STOCK</Text>
+              <Text style={[styles.columnHeader, { flex: 1, minWidth: 140, textAlign: 'right' }]}>IN STOCK</Text>
             )}
           </View>
 
@@ -255,14 +256,14 @@ export default function ReportsPage() {
             activeTab === "stock" ? (
               stockSort.sorted.map((row: StockItem) => (
                 <View key={row.id} style={styles.tableRow}>
-                  <Text style={[styles.cellText, { flex: 1.5, fontWeight: "600" }]}>{row.item_code}</Text>
-                  <Text style={[styles.cellText, { flex: 3 }]}>{row.name}</Text>
-                  <View style={{ flex: 2 }}>
+                  <Text style={[styles.cellText, { width: 140, fontWeight: "600" }]}>{row.item_code}</Text>
+                  <Text style={[styles.cellText, { width: 280 }]}>{row.name}</Text>
+                  <View style={{ width: 180 }}>
                     <View style={styles.typeBadge}>
                       <Text style={styles.typeBadgeText}>{row.category || "General"}</Text>
                     </View>
                   </View>
-                  <Text style={[styles.cellText, { flex: 1, textAlign: 'right', fontWeight: "700", color: row.current_stock === 0 ? "#EF4444" : "#111111" }]}>
+                  <Text style={[styles.cellText, { flex: 1, minWidth: 140, textAlign: 'right', fontWeight: "700", color: row.current_stock === 0 ? "#EF4444" : "#111111" }]}>
                     {row.current_stock} {row.unit_of_measure}
                   </Text>
                 </View>
@@ -270,21 +271,22 @@ export default function ReportsPage() {
             ) : (
               urgentSort.sorted.map((order: any) => (
                 <View key={order.id} style={styles.tableRow}>
-                  <Text style={[styles.cellText, { flex: 1.5, fontWeight: "600" }]}>PO-{order.id.substring(0, 5).toUpperCase()}</Text>
-                  <Text style={[styles.cellText, { flex: 3 }]}>{order.supplier_name}</Text>
-                  <View style={{ flex: 2 }}>
+                  <Text style={[styles.cellText, { width: 140, fontWeight: "600" }]}>PO-{order.id.substring(0, 5).toUpperCase()}</Text>
+                  <Text style={[styles.cellText, { width: 280 }]}>{order.supplier_name}</Text>
+                  <View style={{ width: 180 }}>
                     <View style={[styles.typeBadge, { backgroundColor: '#FEE2E2' }]}>
                       <Text style={[styles.typeBadgeText, { color: '#EF4444' }]}>Urgent</Text>
                     </View>
                   </View>
-                  <Text style={[styles.cellText, { flex: 1, textAlign: 'right', fontWeight: "700", color: "#EF4444" }]}>
+                  <Text style={[styles.cellText, { flex: 1, minWidth: 140, textAlign: 'right', fontWeight: "700", color: "#EF4444" }]}>
                     {order.items?.length || 0} items
                   </Text>
                 </View>
               ))
             )
           )}
-        </View>
+          </View>
+        </ScrollView>
 
       </ScrollView>
     </View>
@@ -332,7 +334,8 @@ const styles = StyleSheet.create({
   activeTabText: { color: "#111111", fontWeight: "600" },
 
   // Table
-  tableCard: { backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", overflow: "hidden", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 2 },
+  tableWrapper: { width: "100%" },
+  tableCard: { minWidth: 700, flex: 1, backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", overflow: "hidden", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 2 },
   tableHeader: { flexDirection: "row", backgroundColor: "#F9FAFB", paddingVertical: 14, paddingHorizontal: spacing.xl, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
   columnHeader: { fontSize: 12, fontWeight: "700", color: "#6B7280", letterSpacing: 0.5 },
   tableRow: { flexDirection: "row", alignItems: "center", paddingVertical: 14, paddingHorizontal: spacing.xl, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },

@@ -173,45 +173,47 @@ export default function BoxesPage() {
         </View>
 
         {/* Table Card / Empty State */}
-        <View style={styles.tableCard}>
-          <View style={styles.tableHeader}>
-            <SortableHeaderCell label="BOX" active={sortKey === "box_name"} direction={sortDir} onPress={() => toggleSort("box_name")} textStyle={styles.columnHeader} containerStyle={{ flex: 2 }} />
-            <SortableHeaderCell label="PRODUCT" active={sortKey === "product_name"} direction={sortDir} onPress={() => toggleSort("product_name")} textStyle={styles.columnHeader} containerStyle={{ flex: 2 }} />
-            <SortableHeaderCell label="PCS PER BOX" active={sortKey === "pcs_per_box"} direction={sortDir} onPress={() => toggleSort("pcs_per_box")} textStyle={styles.columnHeader} containerStyle={{ flex: 1.2, justifyContent: "flex-end" }} />
-            <Text style={[styles.columnHeader, { width: 60, textAlign: "right" }]}>ACTION</Text>
-          </View>
-
-          {loading ? (
-            <ActivityIndicator size="large" color="#8B5CF6" style={{ marginVertical: 60 }} />
-          ) : mappings.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No box mappings yet. Tap "Add Mapping" to create one.</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
+          <View style={styles.tableCard}>
+            <View style={styles.tableHeader}>
+              <SortableHeaderCell label="BOX" active={sortKey === "box_name"} direction={sortDir} onPress={() => toggleSort("box_name")} textStyle={styles.columnHeader} containerStyle={{ width: 180 }} />
+              <SortableHeaderCell label="PRODUCT" active={sortKey === "product_name"} direction={sortDir} onPress={() => toggleSort("product_name")} textStyle={styles.columnHeader} containerStyle={{ flex: 1, minWidth: 180 }} />
+              <SortableHeaderCell label="PCS PER BOX" active={sortKey === "pcs_per_box"} direction={sortDir} onPress={() => toggleSort("pcs_per_box")} textStyle={styles.columnHeader} containerStyle={{ width: 120, justifyContent: "flex-end" }} />
+              <Text style={[styles.columnHeader, { width: 60, textAlign: "right" }]}>ACTION</Text>
             </View>
-          ) : (
-            sortedMappings.map((m) => (
-              <View key={m.id} style={styles.tableRow}>
-                <View style={{ flex: 2 }}>
-                  <Text style={styles.cellTextBold}>{m.box_name}</Text>
-                  {m.box_code && <Text style={styles.cellSubtext}>{m.box_code}</Text>}
-                </View>
-                <View style={{ flex: 2 }}>
-                  <Text style={styles.cellTextBold}>{m.product_name}</Text>
-                  {m.product_code && <Text style={styles.cellSubtext}>{m.product_code}</Text>}
-                </View>
-                <Text style={[styles.cellText, { flex: 1.2, textAlign: "right", fontWeight: "700" }]}>{m.pcs_per_box}</Text>
-                <View style={{ width: 60, alignItems: "flex-end" }}>
-                  {deletingId === m.id ? (
-                    <ActivityIndicator size="small" color="#EF4444" />
-                  ) : (
-                    <Pressable hitSlop={8} onPress={() => setDeleteTarget(m)}>
-                      <Feather name="trash-2" size={16} color="#EF4444" />
-                    </Pressable>
-                  )}
-                </View>
+
+            {loading ? (
+              <ActivityIndicator size="large" color="#8B5CF6" style={{ marginVertical: 60 }} />
+            ) : mappings.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>No box mappings yet. Tap "Add Mapping" to create one.</Text>
               </View>
-            ))
-          )}
-        </View>
+            ) : (
+              sortedMappings.map((m) => (
+                <View key={m.id} style={styles.tableRow}>
+                  <View style={{ width: 180 }}>
+                    <Text style={styles.cellTextBold}>{m.box_name}</Text>
+                    {m.box_code && <Text style={styles.cellSubtext}>{m.box_code}</Text>}
+                  </View>
+                  <View style={{ flex: 1, minWidth: 180 }}>
+                    <Text style={styles.cellTextBold}>{m.product_name}</Text>
+                    {m.product_code && <Text style={styles.cellSubtext}>{m.product_code}</Text>}
+                  </View>
+                  <Text style={[styles.cellText, { width: 120, textAlign: "right", fontWeight: "700" }]}>{m.pcs_per_box}</Text>
+                  <View style={{ width: 60, alignItems: "flex-end" }}>
+                    {deletingId === m.id ? (
+                      <ActivityIndicator size="small" color="#EF4444" />
+                    ) : (
+                      <Pressable hitSlop={8} onPress={() => setDeleteTarget(m)}>
+                        <Feather name="trash-2" size={16} color="#EF4444" />
+                      </Pressable>
+                    )}
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        </ScrollView>
 
         {/* Footer Helper Note */}
         <View style={styles.helperRow}>
@@ -308,7 +310,8 @@ const styles = StyleSheet.create({
   addButtonText: { color: colors.white, fontSize: 14, fontWeight: "600" },
 
   // Table
-  tableCard: { backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 2, overflow: "hidden", minHeight: 250, marginBottom: spacing.lg },
+  tableWrapper: { width: "100%" },
+  tableCard: { minWidth: 560, flex: 1, backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 2, overflow: "hidden", minHeight: 250, marginBottom: spacing.lg },
   tableHeader: { flexDirection: "row", backgroundColor: "#F9FAFB", paddingVertical: 16, paddingHorizontal: spacing.xl, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
   columnHeader: { fontSize: 12, fontWeight: "700", color: "#6B7280", letterSpacing: 0.5 },
 

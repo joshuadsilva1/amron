@@ -179,52 +179,54 @@ export default function ManageRacksPage() {
           </ScrollView>
         </View>
 
-        <View style={styles.tableCard}>
-          <View style={styles.tableHeader}>
-            <SortableHeaderCell label="RACK CODE" active={sortKey === "rack_code"} direction={sortDir} onPress={() => toggleSort("rack_code")} textStyle={styles.columnHeader} containerStyle={{ flex: 1.5 }} />
-            <Text style={[styles.columnHeader, { flex: 2 }]}>DEPARTMENT</Text>
-            <SortableHeaderCell label="DESCRIPTION" active={sortKey === "description"} direction={sortDir} onPress={() => toggleSort("description")} textStyle={styles.columnHeader} containerStyle={{ flex: 2 }} />
-            <SortableHeaderCell label="CAPACITY" active={sortKey === "max_capacity_kg"} direction={sortDir} onPress={() => toggleSort("max_capacity_kg")} textStyle={styles.columnHeader} containerStyle={{ flex: 1 }} />
-            <Text style={[styles.columnHeader, { flex: 1, textAlign: 'right' }]}>ACTIONS</Text>
-          </View>
-
-          {loading ? (
-             <ActivityIndicator size="large" color="#8B5CF6" style={{ marginVertical: 60 }} />
-          ) : filteredRacks.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No racks configured yet.</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
+          <View style={styles.tableCard}>
+            <View style={styles.tableHeader}>
+              <SortableHeaderCell label="RACK CODE" active={sortKey === "rack_code"} direction={sortDir} onPress={() => toggleSort("rack_code")} textStyle={styles.columnHeader} containerStyle={{ width: 120 }} />
+              <Text style={[styles.columnHeader, { width: 150 }]}>DEPARTMENT</Text>
+              <SortableHeaderCell label="DESCRIPTION" active={sortKey === "description"} direction={sortDir} onPress={() => toggleSort("description")} textStyle={styles.columnHeader} containerStyle={{ flex: 1, minWidth: 200 }} />
+              <SortableHeaderCell label="CAPACITY" active={sortKey === "max_capacity_kg"} direction={sortDir} onPress={() => toggleSort("max_capacity_kg")} textStyle={styles.columnHeader} containerStyle={{ width: 100 }} />
+              <Text style={[styles.columnHeader, { width: 100, textAlign: 'right' }]}>ACTIONS</Text>
             </View>
-          ) : (
-            sortedRacks.map((rack) => (
-              <View key={rack.id} style={styles.tableRow}>
-                <Text style={[styles.cellText, { flex: 1.5, fontWeight: "700", color: "#111111" }]}>{rack.rack_code}</Text>
-                
-                <View style={{ flex: 2, alignItems: "flex-start" }}>
-                  <View style={styles.deptBadge}>
-                    <Text style={styles.deptBadgeText}>{getDepartmentName(rack.department_id)}</Text>
+
+            {loading ? (
+               <ActivityIndicator size="large" color="#8B5CF6" style={{ marginVertical: 60 }} />
+            ) : filteredRacks.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>No racks configured yet.</Text>
+              </View>
+            ) : (
+              sortedRacks.map((rack) => (
+                <View key={rack.id} style={styles.tableRow}>
+                  <Text style={[styles.cellText, { width: 120, fontWeight: "700", color: "#111111" }]}>{rack.rack_code}</Text>
+
+                  <View style={{ width: 150, alignItems: "flex-start" }}>
+                    <View style={styles.deptBadge}>
+                      <Text style={styles.deptBadgeText}>{getDepartmentName(rack.department_id)}</Text>
+                    </View>
+                  </View>
+
+                  <Text style={[styles.cellText, { flex: 1, minWidth: 200, color: "#6B7280" }]} numberOfLines={1}>
+                    {rack.description || "-"}
+                  </Text>
+
+                  <Text style={[styles.cellText, { width: 100, color: "#4B5563" }]}>
+                    {rack.max_capacity_kg > 0 ? `${rack.max_capacity_kg} kg` : "Unlimited"}
+                  </Text>
+
+                  <View style={{ width: 100, flexDirection: "row", justifyContent: "flex-end", gap: 16 }}>
+                    <Pressable onPress={() => openEditModal(rack)} hitSlop={10}>
+                      <Feather name="edit-2" size={16} color="#6B7280" />
+                    </Pressable>
+                    <Pressable onPress={() => openQRModal(rack)} hitSlop={10}>
+                      <Feather name="maximize" size={16} color="#6B7280" />
+                    </Pressable>
                   </View>
                 </View>
-
-                <Text style={[styles.cellText, { flex: 2, color: "#6B7280" }]} numberOfLines={1}>
-                  {rack.description || "-"}
-                </Text>
-
-                <Text style={[styles.cellText, { flex: 1, color: "#4B5563" }]}>
-                  {rack.max_capacity_kg > 0 ? `${rack.max_capacity_kg} kg` : "Unlimited"}
-                </Text>
-                
-                <View style={{ flex: 1, flexDirection: "row", justifyContent: "flex-end", gap: 16 }}>
-                  <Pressable onPress={() => openEditModal(rack)} hitSlop={10}>
-                    <Feather name="edit-2" size={16} color="#6B7280" />
-                  </Pressable>
-                  <Pressable onPress={() => openQRModal(rack)} hitSlop={10}>
-                    <Feather name="maximize" size={16} color="#6B7280" />
-                  </Pressable>
-                </View>
-              </View>
-            ))
-          )}
-        </View>
+              ))
+            )}
+          </View>
+        </ScrollView>
       </ScrollView>
 
       {/* QR Code Label Modal */}
@@ -353,7 +355,8 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 14, fontWeight: "500", color: "#6B7280" },
   tabTextActive: { color: "#111111", fontWeight: "600" },
 
-  tableCard: { backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 2, overflow: "hidden", minHeight: 300 },
+  tableWrapper: { width: "100%" },
+  tableCard: { minWidth: 700, flex: 1, backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 2, overflow: "hidden", minHeight: 300 },
   tableHeader: { flexDirection: "row", backgroundColor: "#F9FAFB", paddingVertical: 14, paddingHorizontal: spacing.xl, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
   columnHeader: { fontSize: 12, fontWeight: "700", color: "#6B7280", letterSpacing: 0.5 },
   

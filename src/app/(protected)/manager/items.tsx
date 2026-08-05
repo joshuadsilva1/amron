@@ -246,53 +246,55 @@ export default function ItemsPage() {
           </ScrollView>
         </View>
 
-        <View style={styles.tableCard}>
-          <View style={styles.tableHeader}>
-            <SortableHeaderCell label="CODE" active={sortKey === "item_code"} direction={sortDir} onPress={() => toggleSort("item_code")} textStyle={styles.columnHeader} containerStyle={{ flex: 1 }} />
-            <SortableHeaderCell label="OEM CODE" active={sortKey === "oem_company_code"} direction={sortDir} onPress={() => toggleSort("oem_company_code")} textStyle={styles.columnHeader} containerStyle={{ flex: 1 }} />
-            <SortableHeaderCell label="NAME" active={sortKey === "name"} direction={sortDir} onPress={() => toggleSort("name")} textStyle={styles.columnHeader} containerStyle={{ flex: 2 }} />
-            <Text style={[styles.columnHeader, { flex: 1.5 }]}>DEPARTMENT</Text>
-            <SortableHeaderCell label="UNIT" active={sortKey === "unit_of_measure"} direction={sortDir} onPress={() => toggleSort("unit_of_measure")} textStyle={styles.columnHeader} containerStyle={{ flex: 1 }} />
-            <Text style={[styles.columnHeader, { flex: 1, textAlign: 'right' }]}>ACTIONS</Text>
-          </View>
-
-          {loading ? (
-             <ActivityIndicator size="large" color="#8B5CF6" style={{ marginVertical: 60 }} />
-          ) : filteredItems.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateText}>No items found.</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
+          <View style={styles.tableCard}>
+            <View style={styles.tableHeader}>
+              <SortableHeaderCell label="CODE" active={sortKey === "item_code"} direction={sortDir} onPress={() => toggleSort("item_code")} textStyle={styles.columnHeader} containerStyle={{ width: 100 }} />
+              <SortableHeaderCell label="OEM CODE" active={sortKey === "oem_company_code"} direction={sortDir} onPress={() => toggleSort("oem_company_code")} textStyle={styles.columnHeader} containerStyle={{ width: 120 }} />
+              <SortableHeaderCell label="NAME" active={sortKey === "name"} direction={sortDir} onPress={() => toggleSort("name")} textStyle={styles.columnHeader} containerStyle={{ flex: 1, minWidth: 200 }} />
+              <Text style={[styles.columnHeader, { width: 150 }]}>DEPARTMENT</Text>
+              <SortableHeaderCell label="UNIT" active={sortKey === "unit_of_measure"} direction={sortDir} onPress={() => toggleSort("unit_of_measure")} textStyle={styles.columnHeader} containerStyle={{ width: 80 }} />
+              <Text style={[styles.columnHeader, { width: 100, textAlign: 'right' }]}>ACTIONS</Text>
             </View>
-          ) : (
-            sortedItems.map((item) => (
-              <View key={item.id} style={styles.tableRow}>
-                <Text style={[styles.cellText, { flex: 1, fontWeight: "600", color: "#111111" }]}>{item.item_code}</Text>
-                <Text style={[styles.cellText, { flex: 1, color: "#6B7280" }]}>{item.oem_company_code || "-"}</Text>
-                <Text style={[styles.cellText, { flex: 2 }]}>{item.name}</Text>
-                
-                <View style={{ flex: 1.5, alignItems: "flex-start" }}>
-                  <View style={styles.typeBadge}>
-                    <Text style={styles.typeBadgeText}>{getDepartmentName(item.department_id)}</Text>
-                  </View>
-                </View>
 
-                <View style={{ flex: 1, alignItems: "flex-start" }}>
-                  <View style={styles.unitBadge}>
-                    <Text style={styles.unitBadgeText}>{item.unit_of_measure}</Text>
+            {loading ? (
+               <ActivityIndicator size="large" color="#8B5CF6" style={{ marginVertical: 60 }} />
+            ) : filteredItems.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>No items found.</Text>
+              </View>
+            ) : (
+              sortedItems.map((item) => (
+                <View key={item.id} style={styles.tableRow}>
+                  <Text style={[styles.cellText, { width: 100, fontWeight: "600", color: "#111111" }]}>{item.item_code}</Text>
+                  <Text style={[styles.cellText, { width: 120, color: "#6B7280" }]}>{item.oem_company_code || "-"}</Text>
+                  <Text style={[styles.cellText, { flex: 1, minWidth: 200 }]}>{item.name}</Text>
+
+                  <View style={{ width: 150, alignItems: "flex-start" }}>
+                    <View style={styles.typeBadge}>
+                      <Text style={styles.typeBadgeText}>{getDepartmentName(item.department_id)}</Text>
+                    </View>
+                  </View>
+
+                  <View style={{ width: 80, alignItems: "flex-start" }}>
+                    <View style={styles.unitBadge}>
+                      <Text style={styles.unitBadgeText}>{item.unit_of_measure}</Text>
+                    </View>
+                  </View>
+
+                  <View style={{ width: 100, flexDirection: "row", justifyContent: "flex-end", gap: 16 }}>
+                    <Pressable onPress={() => openEditModal(item)} hitSlop={10}>
+                      <Feather name="edit-2" size={16} color="#6B7280" />
+                    </Pressable>
+                    <Pressable onPress={() => openQRModal(item)} hitSlop={10}>
+                      <Feather name="maximize" size={16} color="#6B7280" />
+                    </Pressable>
                   </View>
                 </View>
-                
-                <View style={{ flex: 1, flexDirection: "row", justifyContent: "flex-end", gap: 16 }}>
-                  <Pressable onPress={() => openEditModal(item)} hitSlop={10}>
-                    <Feather name="edit-2" size={16} color="#6B7280" />
-                  </Pressable>
-                  <Pressable onPress={() => openQRModal(item)} hitSlop={10}>
-                    <Feather name="maximize" size={16} color="#6B7280" />
-                  </Pressable>
-                </View>
-              </View>
-            ))
-          )}
-        </View>
+              ))
+            )}
+          </View>
+        </ScrollView>
       </ScrollView>
 
      {/* QR Code Modal (Printable Label Format) */}
@@ -498,7 +500,8 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 14, fontWeight: "500", color: "#6B7280" },
   tabTextActive: { color: "#111111", fontWeight: "600" },
 
-  tableCard: { backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 2, overflow: "hidden", minHeight: 300 },
+  tableWrapper: { width: "100%" },
+  tableCard: { minWidth: 850, flex: 1, backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 2, overflow: "hidden", minHeight: 300 },
   tableHeader: { flexDirection: "row", backgroundColor: "#F9FAFB", paddingVertical: 14, paddingHorizontal: spacing.xl, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
   columnHeader: { fontSize: 12, fontWeight: "700", color: "#6B7280", letterSpacing: 0.5 },
   

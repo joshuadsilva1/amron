@@ -463,7 +463,7 @@ export default function QRCodeSheetPage() {
     const labels: { code: string; name: string; qr: string }[] = [];
     selectedItems.forEach(({ product, quantity }) => {
       for (let i = 0; i < quantity; i++) {
-        labels.push({ code: product.item_code, name: product.name, qr: product.master_qr_string });
+        labels.push({ code: product.item_code, name: product.name, qr: product.item_code });
       }
     });
 
