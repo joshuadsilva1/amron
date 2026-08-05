@@ -1,0 +1,16 @@
+{
+  "buildCommand": "npx expo export --platform web",
+  "outputDirectory": "dist",
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/manager/departments/:id/rack-stock", "destination": "/manager/departments/[id]/rack-stock.html" },
+    { "source": "/manager/departments/:id/stock-po", "destination": "/manager/departments/[id]/stock-po.html" },
+    { "source": "/manager/departments/:id/suppliers", "destination": "/manager/departments/[id]/suppliers.html" },
+    { "source": "/manager/departments/:id/scan", "destination": "/manager/departments/[id]/scan.html" },
+    { "source": "/manager/departments/:id/verify-handoff", "destination": "/manager/departments/[id]/verify-handoff.html" },
+    { "source": "/manager/departments/:id/work-allotment", "destination": "/manager/departments/[id]/work-allotment.html" },
+    { "source": "/manager/departments/:id/produce", "destination": "/manager/departments/[id]/produce.html" },
+    { "source": "/manager/departments/:id/handoff", "destination": "/manager/departments/[id]/handoff.html" },
+    { "source": "/chat/:id", "destination": "/chat/[id].html" }
+  ]
+}
