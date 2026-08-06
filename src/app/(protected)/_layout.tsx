@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, Pressable, useWindowDimensions, ScrollView, Platform } from "react-native";
 import { Slot, usePathname, router } from "expo-router";
 import { Feather } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import colors from "@/theme/colors";
 import spacing from "@/theme/spacing";
 import api from "@/services/api";
@@ -108,6 +109,11 @@ export default function ProtectedLayout() {
   const pathname = usePathname();
   const { width } = useWindowDimensions();
   const { user, logout } = useAuthStore();
+  // Real device insets instead of a hardcoded guess — on phones with a
+  // curved/waterfall edge display or an unusual status bar height, a fixed
+  // paddingTop put the hamburger button's tap target partly under the
+  // status bar / curved-edge dead zone, making it hard to hit reliably.
+  const insets = useSafeAreaInsets();
   
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -175,7 +181,7 @@ export default function ProtectedLayout() {
       )}
 
       {(isLargeScreen || isMobileMenuOpen) && (
-        <View style={[styles.sidebar, !isLargeScreen && styles.sidebarMobile]}>
+        <View style={[styles.sidebar, !isLargeScreen && styles.sidebarMobile, { paddingTop: insets.top + 20 }]}>
           
           <View style={styles.brandContainer}>
             <View style={styles.logoBadge}>
@@ -321,7 +327,7 @@ export default function ProtectedLayout() {
 
       <View style={styles.contentArea}>
         {!isLargeScreen && (
-          <View style={styles.mobileTopBar}>
+          <View style={[styles.mobileTopBar, { paddingTop: insets.top + 12 }]}>
             <Pressable onPress={() => setIsMobileMenuOpen(true)} style={styles.hamburgerBtn} hitSlop={20}>
               <Feather name="menu" size={24} color={colors.navy} />
             </Pressable>
@@ -339,7 +345,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, flexDirection: "row", backgroundColor: "#F9FAFB" },
   
   // Sidebar Structure
-  sidebar: { width: 260, backgroundColor: "#111111", borderRightWidth: 1, borderColor: "#2A2A2A", paddingTop: Platform.OS === "ios" ? 50 : 20 },
+  sidebar: { width: 260, backgroundColor: "#111111", borderRightWidth: 1, borderColor: "#2A2A2A" },
   sidebarMobile: { position: "absolute", top: 0, bottom: 0, left: 0, zIndex: 50, shadowColor: "#000", shadowOpacity: 0.5, shadowRadius: 15, elevation: 10 },
   backdrop: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0, backgroundColor: "rgba(0,0,0,0.6)", zIndex: 40 },
   
@@ -383,7 +389,7 @@ const styles = StyleSheet.create({
   
   // Content Core
   contentArea: { flex: 1, overflow: "hidden", backgroundColor: "#F9FAFB" },
-  mobileTopBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: colors.white, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: 1, borderColor: colors.border, elevation: 2, paddingTop: Platform.OS === "ios" ? 50 : 20 },
+  mobileTopBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: colors.white, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: 1, borderColor: colors.border, elevation: 2 },
   hamburgerBtn: { padding: 4 },
   mobileTopBarTitle: { fontSize: 18, fontWeight: "700", color: colors.navy }
 });

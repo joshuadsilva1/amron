@@ -5,6 +5,7 @@ import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
 import { CameraView, useCameraPermissions } from "expo-camera"; // <-- Live Camera imports!
 import * as DocumentPicker from "expo-document-picker";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import colors from "@/theme/colors";
 import spacing from "@/theme/spacing";
@@ -55,6 +56,7 @@ const SelectInput = ({ label, placeholder, value, options, onSelect }: any) => {
 
 export default function ScanInOutPage() {
   const { id } = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
 
   // Camera Permissions & Scanner State
@@ -425,7 +427,7 @@ export default function ScanInOutPage() {
       {activeScanner !== null && (
         <Modal visible={true} transparent={false} animationType="slide">
           <View style={styles.scannerContainer}>
-            <View style={styles.scannerHeader}>
+            <View style={[styles.scannerHeader, { paddingTop: insets.top + 16 }]}>
               <Text style={styles.scannerTitle}>Scan {activeScanner === 'item' ? 'Item' : 'Rack'} QR</Text>
               <Pressable onPress={() => setActiveScanner(null)} style={styles.closeScannerBtn}>
                 <Feather name="x" size={24} color={colors.white} />
@@ -520,7 +522,7 @@ const styles = StyleSheet.create({
 
   // --- Live Scanner Styles ---
   scannerContainer: { flex: 1, backgroundColor: "#000" },
-  scannerHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 24, paddingTop: Platform.OS === 'ios' ? 60 : 24, backgroundColor: "rgba(0,0,0,0.8)" },
+  scannerHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 24, backgroundColor: "rgba(0,0,0,0.8)" },
   scannerTitle: { color: colors.white, fontSize: 18, fontWeight: "700" },
   closeScannerBtn: { padding: 8 },
   cameraFrame: { flex: 1, width: "100%" },
