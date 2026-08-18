@@ -33,6 +33,7 @@ const NAV_GROUPS = [
     section: "Purchasing",
     groupIcon: "shopping-cart",
     items: [
+      { title: "Material Requirements", icon: "alert-triangle", route: "/(protected)/manager/mrp" },
       { title: "Suppliers", icon: "truck", route: "/(protected)/manager/suppliers" },
       { title: "Supplier Orders", icon: "truck", route: "/(protected)/manager/supplier-orders" },
     ],
