@@ -30,6 +30,13 @@ const NAV_GROUPS = [
     ],
   },
   {
+    section: "Production",
+    groupIcon: "cpu",
+    items: [
+      { title: "Production Planning", icon: "calendar", route: "/(protected)/manager/production" },
+    ],
+  },
+  {
     section: "Purchasing",
     groupIcon: "shopping-cart",
     items: [
