@@ -13,6 +13,7 @@ const NAV_GROUPS = [
     section: "Overview",
     alwaysOpen: true,
     items: [
+      { title: "Control Tower", icon: "monitor", route: "/(protected)/manager/control-tower" },
       { title: "Dashboard", icon: "grid", route: "/(protected)/manager" },
       { title: "Chat", icon: "message-circle", route: "/(protected)/chat" },
       { title: "Notifications", icon: "bell", route: "/(protected)/manager/notifications" },

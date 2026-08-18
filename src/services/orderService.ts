@@ -24,6 +24,7 @@ export interface OrderLineItem {
   internal_product_name: string;
   category: string;
   quantity: number;
+  produced_qty: number;
   dispatched_qty: number;
 }
 
@@ -56,6 +57,24 @@ export default class OrderService {
   static async createPO(payload: CreatePOPayload) {
     // TWEAK: Removed the trailing slash here so it matches the Flask strict_slashes rules
     const response = await api.post("/orders", payload);
+    return response.data;
+  }
+
+  static async getStatusPipeline(): Promise<string[]> {
+    const response = await api.get<{ status: string; statuses: string[] }>("/orders/statuses");
+    return response.data.statuses;
+  }
+
+  static async updateStatus(poId: string, newStatus: string) {
+    const response = await api.put(`/orders/${poId}/status`, { status: newStatus });
+    return response.data;
+  }
+
+  static async updateLineItemProgress(
+    lineItemId: string,
+    updates: { produced_qty?: number; dispatched_qty?: number }
+  ) {
+    const response = await api.put(`/orders/line-items/${lineItemId}`, updates);
     return response.data;
   }
 }

@@ -59,10 +59,15 @@ const SelectInput = ({ placeholder, value, options, onSelect }: any) => {
 };
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  Pending: { bg: "#FEF3C7", text: "#D97706" },
-  Clubbed: { bg: "#DBEAFE", text: "#2563EB" },
-  In_Production: { bg: "#EDE9FE", text: "#7C3AED" },
+  Received: { bg: "#FEF3C7", text: "#D97706" },
+  Verified: { bg: "#DBEAFE", text: "#2563EB" },
+  Planned: { bg: "#DBEAFE", text: "#2563EB" },
+  "Material Check": { bg: "#FEF3C7", text: "#D97706" },
+  "In Production": { bg: "#EDE9FE", text: "#7C3AED" },
+  QC: { bg: "#FFEDD5", text: "#C2410C" },
+  Packing: { bg: "#E0E7FF", text: "#4338CA" },
   Dispatched: { bg: "#ECFDF5", text: "#10B981" },
+  Closed: { bg: "#F3F4F6", text: "#6B7280" },
 };
 
 export default function OEMConversionPage() {
@@ -266,7 +271,7 @@ export default function OEMConversionPage() {
                 </View>
               ) : (
                 clientOrdersSort.sorted.map((po) => {
-                  const statusStyle = STATUS_COLORS[po.status] || STATUS_COLORS.Pending;
+                  const statusStyle = STATUS_COLORS[po.status] || STATUS_COLORS.Received;
                   return (
                     <View key={po.line_item_id} style={styles.tableRow}>
                       <View style={{ width: 220 }}>
