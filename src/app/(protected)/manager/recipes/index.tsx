@@ -1,16 +1,20 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Modal } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 
 import colors from "@/theme/colors";
 import spacing from "@/theme/spacing";
-import RecipeService, { RecipeSummary } from "@/services/recipeService";
+import RecipeService, { RecipeSummary, RecipeVersion } from "@/services/recipeService";
 
 export default function RecipesListPage() {
   const [loading, setLoading] = useState(true);
   const [recipes, setRecipes] = useState<RecipeSummary[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const [historyFor, setHistoryFor] = useState<RecipeSummary | null>(null);
+  const [versions, setVersions] = useState<RecipeVersion[]>([]);
+  const [loadingVersions, setLoadingVersions] = useState(false);
 
   const fetchRecipes = useCallback(async () => {
     try {
@@ -32,13 +36,27 @@ export default function RecipesListPage() {
     }, [fetchRecipes])
   );
 
+  const openHistory = async (recipe: RecipeSummary) => {
+    setHistoryFor(recipe);
+    setLoadingVersions(true);
+    try {
+      const data = await RecipeService.getVersions(recipe.finished_good_id);
+      setVersions(data);
+    } catch (error) {
+      console.warn("Failed to fetch recipe versions", error);
+      setVersions([]);
+    } finally {
+      setLoadingVersions(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.contentArea} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
           <View style={styles.headerTextContainer}>
             <Text style={styles.title}>Recipes (BOM)</Text>
-            <Text style={styles.subtitle}>Bills of material for every finished good you've defined.</Text>
+            <Text style={styles.subtitle}>Bills of material — finished goods and intermediate components can each have their own recipe, so a BOM can nest multiple levels deep.</Text>
           </View>
           <Pressable style={styles.addBtn} onPress={() => router.push("/(protected)/manager/recipes/new")}>
             <Feather name="plus" size={16} color={colors.white} style={{ marginRight: 6 }} />
@@ -64,9 +82,13 @@ export default function RecipesListPage() {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.fgName}>{recipe.finished_good_name}</Text>
                     <Text style={styles.fgCode}>
-                      {recipe.finished_good_code || "No code"} · {recipe.component_count} component{recipe.component_count === 1 ? "" : "s"}
+                      {recipe.finished_good_code || "No code"} · v{recipe.version} · {recipe.component_count} component{recipe.component_count === 1 ? "" : "s"}
                     </Text>
                   </View>
+
+                  <Pressable style={styles.historyBtn} onPress={() => openHistory(recipe)} hitSlop={10}>
+                    <Feather name="clock" size={16} color="#6B7280" />
+                  </Pressable>
 
                   <Pressable
                     style={styles.editBtn}
@@ -83,9 +105,13 @@ export default function RecipesListPage() {
                   <View style={styles.componentsList}>
                     {recipe.components.map((c) => (
                       <View key={c.id} style={styles.componentRow}>
-                        <Text style={styles.componentName}>{c.component_name || "Unknown component"}</Text>
+                        <Text style={styles.componentName}>
+                          {c.component_name || "Unknown component"}
+                          {c.has_sub_recipe ? " ⤵" : ""}
+                        </Text>
                         <Text style={styles.componentMeta}>
                           {c.component_code || "N/A"} · {c.quantity_required} per unit{c.lazer_needed ? " · Lazer needed" : ""}
+                          {c.has_sub_recipe ? " · has its own recipe (multi-level)" : ""}
                         </Text>
                       </View>
                     ))}
@@ -96,6 +122,35 @@ export default function RecipesListPage() {
           })
         )}
       </ScrollView>
+
+      {/* Version history modal */}
+      <Modal visible={!!historyFor} transparent animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setHistoryFor(null)}>
+          <View style={styles.historyModal}>
+            <Text style={styles.historyTitle}>{historyFor?.finished_good_name} — version history</Text>
+            {loadingVersions ? (
+              <ActivityIndicator size="large" color="#8B5CF6" style={{ marginVertical: 30 }} />
+            ) : (
+              <ScrollView style={{ maxHeight: 400 }}>
+                {versions.map((v) => (
+                  <View key={v.id} style={styles.versionRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.versionLabel}>
+                        v{v.version}{v.is_active ? "  (active)" : ""}
+                      </Text>
+                      {!!v.notes && <Text style={styles.versionNotes}>{v.notes}</Text>}
+                      <Text style={styles.versionMeta}>
+                        {v.component_count} component{v.component_count === 1 ? "" : "s"} · {v.created_at ? new Date(v.created_at).toLocaleDateString() : ""}
+                      </Text>
+                    </View>
+                    {v.is_active && <View style={styles.activeDot} />}
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -120,9 +175,19 @@ const styles = StyleSheet.create({
   fgName: { fontSize: 16, fontWeight: "700", color: "#111111", marginBottom: 4 },
   fgCode: { fontSize: 13, color: "#6B7280" },
   editBtn: { padding: 8 },
+  historyBtn: { padding: 8 },
 
   componentsList: { borderTopWidth: 1, borderTopColor: "#F3F4F6", paddingHorizontal: 20, paddingVertical: 12 },
   componentRow: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#F9FAFB" },
   componentName: { fontSize: 14, fontWeight: "600", color: "#111111", marginBottom: 2 },
   componentMeta: { fontSize: 12, color: "#6B7280" },
+
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center", padding: 20 },
+  historyModal: { width: "100%", maxWidth: 420, backgroundColor: colors.white, borderRadius: 16, padding: 20 },
+  historyTitle: { fontSize: 16, fontWeight: "700", color: "#111111", marginBottom: 16 },
+  versionRow: { flexDirection: "row", alignItems: "flex-start", paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
+  versionLabel: { fontSize: 14, fontWeight: "700", color: "#111111" },
+  versionNotes: { fontSize: 13, color: "#6B7280", marginTop: 4, fontStyle: "italic" },
+  versionMeta: { fontSize: 12, color: "#9CA3AF", marginTop: 4 },
+  activeDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#22C55E", marginTop: 6 },
 });

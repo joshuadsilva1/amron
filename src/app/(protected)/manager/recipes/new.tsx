@@ -10,7 +10,7 @@ import api from "@/services/api";
 import RecipeService from "@/services/recipeService";
 
 // --- Reusable Dropdown Component ---
-const SelectInput = ({ label, placeholder, value, options, onSelect }: any) => {
+const SelectInput = ({ label, placeholder, value, options, onSelect, hasRecipeIds }: any) => {
   const [modalVisible, setModalVisible] = useState(false);
   const selectedOption = options?.find((o: any) => o.id === value);
 
@@ -32,12 +32,13 @@ const SelectInput = ({ label, placeholder, value, options, onSelect }: any) => {
               data={options || []}
               keyExtractor={(item) => String(item.id)}
               renderItem={({ item }) => (
-                <Pressable 
+                <Pressable
                   style={styles.dropdownOption}
                   onPress={() => { onSelect(item.id); setModalVisible(false); }}
                 >
                   <Text style={[styles.dropdownOptionText, value === item.id && { color: "#8B5CF6", fontWeight: "700" }]}>
                     {item.name} {item.item_code ? `(${item.item_code})` : ""}
+                    {hasRecipeIds?.has(item.id) ? " · has its own recipe" : ""}
                   </Text>
                   {value === item.id && <Feather name="check" size={18} color="#8B5CF6" />}
                 </Pressable>
@@ -65,27 +66,34 @@ export default function RecipeBuilderPage() {
   // Form State
   const [selectedFG, setSelectedFG] = useState("");
   const [components, setComponents] = useState<{ id: string, department: string, itemId: string, qty: string }[]>([]);
+  const [notes, setNotes] = useState("");
+  const [currentVersion, setCurrentVersion] = useState<number | null>(null);
+  const [hasRecipeIds, setHasRecipeIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [deptsRes, fgRes, rmRes] = await Promise.all([
+        const [deptsRes, rmRes, recipesRes] = await Promise.all([
           api.get('/departments'),
-          // A finished good is an item currently sitting in a FINAL-level
-          // department (Dispatch) — not a category/type flag.
-          api.get('/items?department_level=FINAL'),
+          // Any item can be "what you're building" now, not just a
+          // FINAL-level finished good — that's what lets a component
+          // (e.g. an RTC Assembly) have its own recipe, which is what
+          // makes multi-level BOMs possible.
           api.get('/items'),
+          RecipeService.getRecipes().catch(() => []),
         ]);
 
         const depts = deptsRes.data?.data || [];
         const materials = rmRes.data?.data || [];
         setDepartments(depts);
-        setFinishedGoods(fgRes.data?.data || []);
+        setFinishedGoods(materials);
         setRawMaterials(materials);
+        setHasRecipeIds(new Set(recipesRes.map((r) => r.finished_good_id)));
 
         if (editingFinishedGoodId) {
           setSelectedFG(editingFinishedGoodId);
-          const { components: existing } = await RecipeService.getRecipe(editingFinishedGoodId);
+          const { components: existing, version } = await RecipeService.getRecipe(editingFinishedGoodId);
+          setCurrentVersion(version);
           setComponents(existing.map((c) => {
             const material = materials.find((m: any) => m.id === c.component_id);
             return {
@@ -138,19 +146,21 @@ export default function RecipeBuilderPage() {
 
     try {
       setSubmitting(true);
-      await RecipeService.createRecipe({
+      const result = await RecipeService.createRecipe({
         output_item_id: selectedFG,
         ingredients: components.map((c) => ({
           input_item_id: c.itemId,
           quantity_required: parseFloat(c.qty) || 0,
         })),
+        notes: notes.trim() || undefined,
       });
-      Alert.alert("Success", "Recipe (BOM) saved successfully! Auto-deductions are now active for this product.");
+      Alert.alert("Success", `Saved as version ${result.version}. The previous version is kept in history, not overwritten.`);
       if (isEditing) {
         router.back();
       } else {
         setSelectedFG("");
         setComponents([]);
+        setNotes("");
       }
     } catch (error: any) {
       Alert.alert("Error", error?.response?.data?.error || "Failed to save recipe.");
@@ -164,9 +174,14 @@ export default function RecipeBuilderPage() {
       <ScrollView contentContainerStyle={styles.contentArea} showsVerticalScrollIndicator={false}>
         
         <View style={styles.headerRow}>
-          <Text style={styles.title}>{isEditing ? "Edit Recipe" : "Recipe (BOM) Builder"}</Text>
+          <Text style={styles.title}>
+            {isEditing ? "Edit Recipe" : "Recipe (BOM) Builder"}
+            {isEditing && currentVersion ? ` — v${currentVersion}` : ""}
+          </Text>
           <Text style={styles.subtitle}>
-            {isEditing ? "Update the raw materials required to assemble this finished good." : "Define the raw materials required to assemble a finished good."}
+            {isEditing
+              ? "Saving creates a new version — the current one is kept in history, not overwritten."
+              : "Define the components required to build this item. Works for finished goods and for intermediate components/subassemblies alike — building a component's own recipe here is what enables multi-level BOMs."}
           </Text>
         </View>
 
@@ -174,16 +189,17 @@ export default function RecipeBuilderPage() {
 
         {!loadingExisting && <>
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>1. Select Finished Good</Text>
+          <Text style={styles.cardTitle}>1. What are you building?</Text>
           <SelectInput
-            placeholder="Select a finished product..."
+            placeholder="Select an item (finished good or component)..."
             value={selectedFG}
             options={finishedGoods}
             onSelect={setSelectedFG}
+            hasRecipeIds={hasRecipeIds}
           />
           {finishedGoods.length === 0 && (
             <Text style={styles.helperText}>
-              No finished goods yet — an item only shows up here once it's in the Dispatch department.
+              No items yet — add one under Items & QR first.
             </Text>
           )}
         </View>
@@ -228,11 +244,12 @@ export default function RecipeBuilderPage() {
                         />
                       </View>
                       <View style={{ flex: 2 }}>
-                        <SelectInput 
-                          placeholder="Select specific part..." 
-                          value={comp.itemId} 
-                          options={filteredMaterials} 
-                          onSelect={(val: string) => updateComponent(comp.id, 'itemId', val)} 
+                        <SelectInput
+                          placeholder="Select specific part..."
+                          value={comp.itemId}
+                          options={filteredMaterials}
+                          onSelect={(val: string) => updateComponent(comp.id, 'itemId', val)}
+                          hasRecipeIds={hasRecipeIds}
                         />
                       </View>
                     </View>
@@ -256,13 +273,25 @@ export default function RecipeBuilderPage() {
             })
           )}
 
-          <Pressable 
-            style={[styles.saveBtn, (components.length === 0 || submitting) && styles.saveBtnDisabled]} 
+          <View style={{ marginTop: spacing.md }}>
+            <Text style={styles.label}>Revision notes (optional)</Text>
+            <TextInput
+              style={styles.notesInput}
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="e.g. Engineering change: brass supplier switched"
+              placeholderTextColor="#9CA3AF"
+              multiline
+            />
+          </View>
+
+          <Pressable
+            style={[styles.saveBtn, (components.length === 0 || submitting) && styles.saveBtnDisabled]}
             onPress={handleSaveRecipe}
             disabled={components.length === 0 || submitting}
           >
             <Feather name="save" size={18} color={colors.white} style={{ marginRight: 8 }} />
-            <Text style={styles.saveBtnText}>{submitting ? "Saving..." : "Save Recipe"}</Text>
+            <Text style={styles.saveBtnText}>{submitting ? "Saving..." : isEditing ? "Save as New Version" : "Save Recipe"}</Text>
           </Pressable>
         </View>
         </>}
@@ -299,6 +328,7 @@ const styles = StyleSheet.create({
   
   qtyRow: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end" },
   qtyInput: { backgroundColor: colors.white, borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 8, width: 80, height: 40, paddingHorizontal: 12, fontSize: 15, textAlign: "center", marginLeft: 12 },
+  notesInput: { backgroundColor: colors.white, borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 8, minHeight: 60, padding: 12, fontSize: 14, textAlignVertical: "top" },
   
   deleteBtn: { padding: 12, marginLeft: 12, marginTop: 2 },
   
