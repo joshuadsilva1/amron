@@ -7,6 +7,7 @@ import colors from "@/theme/colors";
 import spacing from "@/theme/spacing";
 import ControlTowerService, { ControlTowerSummary, ControlTowerOrderRow } from "@/services/controlTowerService";
 import OrderService from "@/services/orderService";
+import DepartmentPoService from "@/services/departmentPoService";
 import { useSortable } from "@/utils/useSortable";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
 
@@ -36,6 +37,7 @@ export default function ControlTowerScreen() {
 
   const [statusPickerFor, setStatusPickerFor] = useState<ControlTowerOrderRow | null>(null);
   const [updatingPoId, setUpdatingPoId] = useState<string | null>(null);
+  const [sendingPoId, setSendingPoId] = useState<string | null>(null);
 
   const { sorted: sortedOrders, sortKey, sortDir, toggleSort } = useSortable<ControlTowerOrderRow>(orders);
 
@@ -75,6 +77,23 @@ export default function ControlTowerScreen() {
       Alert.alert("Error", error.response?.data?.error || "Failed to update status.");
     } finally {
       setUpdatingPoId(null);
+    }
+  };
+
+  // Explodes this PO's finished goods one level deep, raises/tops up one
+  // internal DepartmentPO per department owing a direct component, and
+  // notifies each — the "we picked it up, here's what Moulding/Brasspart
+  // owe it" step.
+  const handleSendToDepartments = async (row: ControlTowerOrderRow) => {
+    try {
+      setSendingPoId(row.po_id);
+      const result = await DepartmentPoService.generateFromPO(row.po_id);
+      Alert.alert("Sent", result.message || "Internal POs raised.");
+      await fetchData();
+    } catch (error: any) {
+      Alert.alert("Error", error.response?.data?.error || "Failed to send to departments.");
+    } finally {
+      setSendingPoId(null);
     }
   };
 
@@ -151,7 +170,8 @@ export default function ControlTowerScreen() {
                 <SortableHeaderCell label="QTY" active={sortKey === "quantity"} direction={sortDir} onPress={() => toggleSort("quantity")} textStyle={styles.columnHeader} containerStyle={{ width: 90 }} />
                 <SortableHeaderCell label="DUE DATE" active={sortKey === "due_date"} direction={sortDir} onPress={() => toggleSort("due_date")} textStyle={styles.columnHeader} containerStyle={{ width: 110 }} />
                 <SortableHeaderCell label="STAGE" active={sortKey === "current_stage"} direction={sortDir} onPress={() => toggleSort("current_stage")} textStyle={styles.columnHeader} containerStyle={{ width: 140 }} />
-                <Text style={[styles.columnHeader, { flex: 1, minWidth: 120 }]}>STATUS</Text>
+                <Text style={[styles.columnHeader, { width: 120 }]}>STATUS</Text>
+                <Text style={[styles.columnHeader, { flex: 1, minWidth: 160 }]}>INTERNAL PO</Text>
               </View>
 
               {sortedOrders.length === 0 ? (
@@ -189,13 +209,29 @@ export default function ControlTowerScreen() {
                           </View>
                         )}
                       </Pressable>
-                      <View style={{ flex: 1, minWidth: 120 }}>
+                      <View style={{ width: 120 }}>
                         <View style={[styles.riskBadge, { backgroundColor: risk.bg }]}>
                           <View style={[styles.riskDot, { backgroundColor: risk.dot }]} />
                           <Text style={[styles.riskText, { color: risk.text }]}>
                             {row.risk === "RED" ? "Delayed" : row.risk === "YELLOW" ? "At Risk" : "On Track"}
                           </Text>
                         </View>
+                      </View>
+                      <View style={{ flex: 1, minWidth: 160 }}>
+                        <Pressable
+                          style={styles.sendDeptBtn}
+                          onPress={() => handleSendToDepartments(row)}
+                          disabled={sendingPoId === row.po_id}
+                        >
+                          {sendingPoId === row.po_id ? (
+                            <ActivityIndicator size="small" color="#8B5CF6" />
+                          ) : (
+                            <>
+                              <Feather name="send" size={12} color="#8B5CF6" style={{ marginRight: 6 }} />
+                              <Text style={styles.sendDeptBtnText}>Send to departments</Text>
+                            </>
+                          )}
+                        </Pressable>
                       </View>
                     </View>
                   );
@@ -253,7 +289,7 @@ const styles = StyleSheet.create({
   timestamp: { fontSize: 12, color: "#9CA3AF" },
 
   tableWrapper: { width: "100%" },
-  tableCard: { minWidth: 810, flex: 1, backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", overflow: "hidden" },
+  tableCard: { minWidth: 970, flex: 1, backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", overflow: "hidden" },
   tableHeader: { flexDirection: "row", backgroundColor: "#F9FAFB", paddingVertical: 14, paddingHorizontal: spacing.lg, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
   columnHeader: { fontSize: 11, fontWeight: "700", color: "#6B7280", letterSpacing: 0.5 },
 
@@ -269,6 +305,9 @@ const styles = StyleSheet.create({
   riskBadge: { flexDirection: "row", alignItems: "center", borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10, alignSelf: "flex-start" },
   riskDot: { width: 6, height: 6, borderRadius: 3, marginRight: 6 },
   riskText: { fontSize: 12, fontWeight: "700" },
+
+  sendDeptBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#F5F3FF", borderWidth: 1, borderColor: "#DDD6FE", borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10, alignSelf: "flex-start" },
+  sendDeptBtnText: { fontSize: 12, fontWeight: "600", color: "#8B5CF6" },
 
   emptyState: { paddingVertical: 60, alignItems: "center" },
   emptyStateText: { fontSize: 14, color: "#9CA3AF" },

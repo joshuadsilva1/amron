@@ -349,11 +349,12 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, ActivityIndicator, Platform } from "react-native";
 import Alert from "@/utils/alert";
 import { Feather } from "@expo/vector-icons";
-import * as Print from "expo-print";
 
 import colors from "@/theme/colors";
 import spacing from "@/theme/spacing";
 import ItemService, { MasterItem } from "@/services/itemService";
+import LabelService from "@/services/labelService";
+import { exportBinaryFile, exportQrLabelSheet } from "@/utils/export";
 
 interface SelectedItem {
   product: MasterItem;
@@ -365,6 +366,8 @@ export default function QRCodeSheetPage() {
   const [products, setProducts] = useState<MasterItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
+  const [zipDownloading, setZipDownloading] = useState(false);
+  const [pdfDownloading, setPdfDownloading] = useState(false);
 
   useEffect(() => {
     fetchProducts();
@@ -453,57 +456,69 @@ export default function QRCodeSheetPage() {
     setSelectedItems(updatedItems);
   };
 
-  const handlePrint = async () => {
+  // Opening the OS print dialog against the live screen (the old approach)
+  // just screenshots the app page on web instead of the label sheet.
+  // exportQrLabelSheet builds an actual downloadable PDF instead — with a
+  // real native (expo-print) and web (jsPDF) implementation, since
+  // expo-print's HTML rendering only works on native. Labels already have
+  // code/name baked into the PNG server-side, so this only needs to place
+  // images in a grid.
+  const handleDownloadPdfSheet = async () => {
     if (selectedItems.length === 0) {
       Alert.alert("Error", "No products selected to print.");
       return;
     }
 
-    // Expand into one label per requested unit (e.g. qty 3 -> 3 identical labels)
-    const labels: { code: string; name: string; qr: string }[] = [];
-    selectedItems.forEach(({ product, quantity }) => {
-      for (let i = 0; i < quantity; i++) {
-        labels.push({ code: product.item_code, name: product.name, qr: product.item_code });
+    try {
+      setPdfDownloading(true);
+      const uniqueIds = Array.from(new Set(selectedItems.map(({ product }) => product.id)));
+      const images = await LabelService.getQrImages(uniqueIds);
+      const pngByItemId = new Map(images.map((img) => [img.item_id, img.png_base64]));
+
+      // Expand into one label per requested unit (e.g. qty 3 -> 3 identical labels)
+      const labelImages: string[] = [];
+      selectedItems.forEach(({ product, quantity }) => {
+        const png = pngByItemId.get(product.id);
+        if (!png) return;
+        for (let i = 0; i < quantity; i++) labelImages.push(png);
+      });
+
+      if (labelImages.length === 0) {
+        Alert.alert("Error", "Could not render any of the selected labels.");
+        return;
       }
-    });
 
-    // 35 labels per A4 sheet (5 columns x 7 rows), one <img> QR per label via
-    // a public QR image API so no extra native QR-to-canvas step is needed
-    // inside the print HTML.
-    const labelHtml = labels
-      .map(
-        (l) => `
-        <div class="label">
-          <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(l.qr)}" />
-          <div class="code">${l.code}</div>
-          <div class="name">${l.name}</div>
-        </div>`
-      )
-      .join("");
+      await exportQrLabelSheet(labelImages);
+    } catch (error: any) {
+      console.error("PDF sheet error:", error);
+      Alert.alert("Download Failed", error?.response?.data?.error || error.message || "Could not generate the PDF sheet.");
+    } finally {
+      setPdfDownloading(false);
+    }
+  };
 
-    const html = `
-      <html>
-        <head>
-          <style>
-            @page { size: A4; margin: 10mm; }
-            body { margin: 0; font-family: -apple-system, Helvetica, Arial, sans-serif; }
-            .sheet { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4mm; }
-            .label { border: 1px solid #ccc; border-radius: 4px; padding: 4mm; text-align: center; page-break-inside: avoid; }
-            .label img { width: 100%; max-width: 30mm; }
-            .code { font-weight: 700; font-size: 11px; margin-top: 2mm; }
-            .name { font-size: 9px; color: #555; }
-          </style>
-        </head>
-        <body>
-          <div class="sheet">${labelHtml}</div>
-        </body>
-      </html>`;
+  // Renders one crisp PNG label per selected product server-side (QR +
+  // code + name baked in, no third-party image API involved) and bundles
+  // them into a ZIP — drop straight into BarTender to print on the TE244.
+  // quantity isn't duplicated into repeat files; it travels in
+  // manifest.csv inside the ZIP so you know how many of each to print.
+  const handleDownloadForBarTender = async () => {
+    if (selectedItems.length === 0) {
+      Alert.alert("Error", "No products selected to download.");
+      return;
+    }
 
     try {
-      await Print.printAsync({ html });
+      setZipDownloading(true);
+      const result = await LabelService.generateQrZip(
+        selectedItems.map(({ product, quantity }) => ({ item_id: product.id, quantity }))
+      );
+      await exportBinaryFile(result.filename, result.base64, "application/zip", "com.pkware.zip-archive");
     } catch (error: any) {
-      console.error("Print error:", error);
-      Alert.alert("Print Failed", error.message || "Could not open the print dialog.");
+      console.error("QR download error:", error);
+      Alert.alert("Download Failed", error?.response?.data?.error || error.message || "Could not generate the QR labels.");
+    } finally {
+      setZipDownloading(false);
     }
   };
 
@@ -522,7 +537,7 @@ export default function QRCodeSheetPage() {
           <View style={styles.headerTextWrapper}>
             <Text style={styles.title}>QR Code Sheet</Text>
             <Text style={styles.subtitle}>
-              Pick products, set how many of each, and print one combined label sheet (35 per A4).
+              Pick products and set how many of each. Download a combined A4 PDF sheet (35 per page), or a ZIP of individual QR labels to feed into BarTender.
             </Text>
           </View>
         </View>
@@ -650,12 +665,34 @@ export default function QRCodeSheetPage() {
                   <Text style={styles.totalValue}>{totalSheets}</Text>
                 </View>
 
-                <Pressable 
-                  style={[styles.printBtn, selectedItems.length === 0 && styles.printBtnDisabled]} 
-                  onPress={handlePrint}
+                <Pressable
+                  style={[styles.printBtn, (selectedItems.length === 0 || pdfDownloading) && styles.printBtnDisabled]}
+                  onPress={handleDownloadPdfSheet}
+                  disabled={selectedItems.length === 0 || pdfDownloading}
                 >
-                  <Feather name="printer" size={16} color={colors.white} style={{ marginRight: 8 }} />
-                  <Text style={styles.printBtnText}>Print QR sheet</Text>
+                  {pdfDownloading ? (
+                    <ActivityIndicator color={colors.white} size="small" />
+                  ) : (
+                    <>
+                      <Feather name="file-text" size={16} color={colors.white} style={{ marginRight: 8 }} />
+                      <Text style={styles.printBtnText}>Download PDF sheet</Text>
+                    </>
+                  )}
+                </Pressable>
+
+                <Pressable
+                  style={[styles.downloadZipBtn, (selectedItems.length === 0 || zipDownloading) && styles.printBtnDisabled]}
+                  onPress={handleDownloadForBarTender}
+                  disabled={selectedItems.length === 0 || zipDownloading}
+                >
+                  {zipDownloading ? (
+                    <ActivityIndicator color="#111111" size="small" />
+                  ) : (
+                    <>
+                      <Feather name="download" size={16} color="#111111" style={{ marginRight: 8 }} />
+                      <Text style={styles.downloadZipBtnText}>Download for BarTender</Text>
+                    </>
+                  )}
                 </Pressable>
               </View>
 
@@ -737,4 +774,7 @@ const styles = StyleSheet.create({
   printBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#8B5CF6", paddingVertical: 14, borderRadius: 12, marginTop: 12 },
   printBtnDisabled: { backgroundColor: "#D1D5DB" },
   printBtnText: { color: colors.white, fontWeight: "600", fontSize: 15 },
+
+  downloadZipBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: colors.white, borderWidth: 1, borderColor: "#E5E7EB", paddingVertical: 14, borderRadius: 12, marginTop: 12 },
+  downloadZipBtnText: { color: "#111111", fontWeight: "600", fontSize: 15 },
 });

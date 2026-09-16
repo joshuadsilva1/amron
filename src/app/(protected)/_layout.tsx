@@ -8,7 +8,21 @@ import spacing from "@/theme/spacing";
 import api from "@/services/api";
 import useAuthStore from "@/store/authStore";
 
-const NAV_GROUPS = [
+interface NavGroup {
+  section: string;
+  alwaysOpen?: boolean;
+  groupIcon?: string;
+  items: { title: string; icon: string; route: string }[];
+}
+
+// The sidebar reads top-to-bottom as the actual factory process — a PO
+// comes in from a client (1), gets checked against its recipe (2), raw
+// material gets bought if short (3), each department fulfills its slice
+// and hands off downstream as needed — Lazer, Colour, etc. (4, the
+// per-department DEPARTMENTS block rendered between _PRE and _POST below),
+// QC (5), then dispatch (6). Everything after that is reference/support
+// material that isn't part of any one PO's journey, not another stage.
+const NAV_GROUPS_PRE: NavGroup[] = [
   {
     section: "Overview",
     alwaysOpen: true,
@@ -20,39 +34,55 @@ const NAV_GROUPS = [
     ],
   },
   {
-    section: "Sales",
-    groupIcon: "trending-up",
+    section: "1 · Customer Orders",
+    groupIcon: "file-plus",
     items: [
+      { title: "New Purchase Order", icon: "plus-circle", route: "/(protected)/manager/purchase-order/new" },
       { title: "Clients", icon: "users", route: "/(protected)/manager/clients" },
       { title: "Party Products (OEM)", icon: "box", route: "/(protected)/manager/oem" },
-      { title: "Dispatch Outward", icon: "send", route: "/(protected)/dispatch" },
-      { title: "Dispatch Challans", icon: "file-text", route: "/(protected)/manager/dispatch-challans" },
     ],
   },
   {
-    section: "Production",
-    groupIcon: "cpu",
+    section: "2 · Recipes & Requirements",
+    groupIcon: "list",
     items: [
-      { title: "Production Planning", icon: "calendar", route: "/(protected)/manager/production" },
+      { title: "Recipes (BOM)", icon: "list", route: "/(protected)/manager/recipes" },
+      { title: "Material Requirements", icon: "alert-triangle", route: "/(protected)/manager/mrp" },
     ],
   },
   {
-    section: "Purchasing",
+    section: "3 · Purchasing",
     groupIcon: "shopping-cart",
     items: [
-      { title: "Material Requirements", icon: "alert-triangle", route: "/(protected)/manager/mrp" },
       { title: "Suppliers", icon: "truck", route: "/(protected)/manager/suppliers" },
       { title: "Supplier Orders", icon: "truck", route: "/(protected)/manager/supplier-orders" },
     ],
   },
+];
+
+const NAV_GROUPS_POST: NavGroup[] = [
   {
-    section: "Quality",
+    section: "5 · Quality",
     items: [
       { title: "Quality Control", icon: "check-circle", route: "/(protected)/quality" },
     ],
   },
   {
-    section: "Inventory",
+    section: "6 · Dispatch",
+    groupIcon: "send",
+    items: [
+      { title: "Dispatch Outward", icon: "send", route: "/(protected)/dispatch" },
+      { title: "Dispatch Challans", icon: "file-text", route: "/(protected)/manager/dispatch-challans" },
+    ],
+  },
+  {
+    section: "Production Planning",
+    items: [
+      { title: "Production Planning", icon: "calendar", route: "/(protected)/manager/production" },
+    ],
+  },
+  {
+    section: "Inventory & Master Data",
     groupIcon: "database",
     items: [
       { title: "Items & QR", icon: "target", route: "/(protected)/manager/items" },
@@ -60,7 +90,6 @@ const NAV_GROUPS = [
       { title: "Stock Report", icon: "clipboard", route: "/(protected)/manager/stocks" },
       { title: "Racks", icon: "rack", route: "/(protected)/manager/racks" },
       { title: "Boxes", icon: "package", route: "/(protected)/manager/boxes" },
-      { title: "Recipes (BOM)", icon: "list", route: "/(protected)/manager/recipes" },
       { title: "Transaction History", icon: "clock", route: "/(protected)/manager/transaction-history" },
       { title: "Import from Excel", icon: "download", route: "/(protected)/manager/import" },
     ],
@@ -87,11 +116,15 @@ const NAV_GROUPS = [
   },
 ];
 
+// Per-department submenu (the DEPARTMENTS block, stage 4), in the order
+// the work actually happens: see what's owed, buy what's short, do the
+// work, hand it off downstream, keep the physical count honest.
 const SUB_MENU = [
-  { title: "Suppliers", icon: "truck", routeSuffix: "suppliers" },
+  { title: "Internal PO", icon: "inbox", routeSuffix: "internal-po" },
+  { title: "Stock vs PO", icon: "activity", routeSuffix: "stock-po" },
+  { title: "Order Materials", icon: "truck", routeSuffix: "suppliers" },
   { title: "Work Allotment", icon: "list", routeSuffix: "work-allotment" },
   { title: "Log Production", icon: "cpu", routeSuffix: "produce" },
-  { title: "Stock vs PO", icon: "activity", routeSuffix: "stock-po" },
   { title: "Allot & Handoff", icon: "send", routeSuffix: "handoff" },
   { title: "Verify Handoffs", icon: "check-square", routeSuffix: "verify-handoff" },
   { title: "Scan In / Out", icon: "maximize", routeSuffix: "scan" },
@@ -174,8 +207,72 @@ export default function ProtectedLayout() {
   // recently wins for groups the user has explicitly touched.
   const isGroupOpen = (section: string) => {
     if (section in manuallyToggledGroups) return manuallyToggledGroups[section];
-    const group = NAV_GROUPS.find((g) => g.section === section);
+    const group = [...NAV_GROUPS_PRE, ...NAV_GROUPS_POST].find((g) => g.section === section);
     return !!group?.items.some((item) => pathname.startsWith(item.route));
+  };
+
+  // Shared by NAV_GROUPS_PRE and NAV_GROUPS_POST, rendered on either side
+  // of the DEPARTMENTS block so the whole sidebar reads in process order.
+  const renderGroup = (group: NavGroup) => {
+    // Overview items and single-item groups render flat — no point
+    // collapsing a "section" that's just one destination.
+    if (group.alwaysOpen || group.items.length === 1) {
+      return group.items.map((item) => {
+        const isActive = item.route === "/(protected)/manager"
+          ? pathname === "/(protected)/manager"
+          : pathname.startsWith(item.route);
+
+        return (
+          <Pressable
+            key={item.route}
+            style={[styles.navItem, isActive && styles.navItemActive]}
+            onPress={() => handleNavigation(item.route)}
+          >
+            <Feather name={item.icon as any} size={18} color={isActive ? "#111111" : "#9CA3AF"} />
+            <Text style={[styles.navText, isActive && styles.navTextActive]}>
+              {item.title}
+            </Text>
+          </Pressable>
+        );
+      });
+    }
+
+    const isOpen = isGroupOpen(group.section);
+
+    return (
+      <View key={group.section} style={styles.deptBlock}>
+        <Pressable
+          style={[styles.deptHeader, isOpen && styles.deptHeaderExpanded]}
+          onPress={() => toggleGroup(group.section)}
+        >
+          <Feather name={(group.groupIcon || "folder") as any} size={18} color={isOpen ? "#FFFFFF" : "#9CA3AF"} />
+          <Text style={[styles.deptName, isOpen && styles.deptNameExpanded]}>
+            {group.section}
+          </Text>
+          <Feather name={isOpen ? "chevron-up" : "chevron-down"} size={16} color="#9CA3AF" />
+        </Pressable>
+
+        {isOpen && (
+          <View style={styles.nestedContainer}>
+            {group.items.map((item) => {
+              const isActive = pathname.startsWith(item.route);
+              return (
+                <Pressable
+                  key={item.route}
+                  style={[styles.nestedItem, isActive && styles.nestedItemActive]}
+                  onPress={() => handleNavigation(item.route)}
+                >
+                  <Feather name={item.icon as any} size={16} color={isActive ? "#111111" : "#9CA3AF"} />
+                  <Text style={[styles.nestedItemText, isActive && styles.nestedItemTextActive]}>
+                    {item.title}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
+      </View>
+    );
   };
 
   const handleLogout = () => {
@@ -209,74 +306,14 @@ export default function ProtectedLayout() {
 
           <ScrollView style={styles.navScrollArea} showsVerticalScrollIndicator={false}>
             
-            {/* General Menus, grouped into collapsible sections */}
+            {/* Stages 1-3: PO intake through purchasing, before any department gets involved */}
             <View style={styles.navContainer}>
-              {NAV_GROUPS.map((group) => {
-                // Overview items and single-item groups render flat — no
-                // point collapsing a "section" that's just one destination.
-                if (group.alwaysOpen || group.items.length === 1) {
-                  return group.items.map((item) => {
-                    const isActive = item.route === "/(protected)/manager"
-                      ? pathname === "/(protected)/manager"
-                      : pathname.startsWith(item.route);
-
-                    return (
-                      <Pressable
-                        key={item.route}
-                        style={[styles.navItem, isActive && styles.navItemActive]}
-                        onPress={() => handleNavigation(item.route)}
-                      >
-                        <Feather name={item.icon as any} size={18} color={isActive ? "#111111" : "#9CA3AF"} />
-                        <Text style={[styles.navText, isActive && styles.navTextActive]}>
-                          {item.title}
-                        </Text>
-                      </Pressable>
-                    );
-                  });
-                }
-
-                const isOpen = isGroupOpen(group.section);
-
-                return (
-                  <View key={group.section} style={styles.deptBlock}>
-                    <Pressable
-                      style={[styles.deptHeader, isOpen && styles.deptHeaderExpanded]}
-                      onPress={() => toggleGroup(group.section)}
-                    >
-                      <Feather name={(group.groupIcon || "folder") as any} size={18} color={isOpen ? "#FFFFFF" : "#9CA3AF"} />
-                      <Text style={[styles.deptName, isOpen && styles.deptNameExpanded]}>
-                        {group.section}
-                      </Text>
-                      <Feather name={isOpen ? "chevron-up" : "chevron-down"} size={16} color="#9CA3AF" />
-                    </Pressable>
-
-                    {isOpen && (
-                      <View style={styles.nestedContainer}>
-                        {group.items.map((item) => {
-                          const isActive = pathname.startsWith(item.route);
-                          return (
-                            <Pressable
-                              key={item.route}
-                              style={[styles.nestedItem, isActive && styles.nestedItemActive]}
-                              onPress={() => handleNavigation(item.route)}
-                            >
-                              <Feather name={item.icon as any} size={16} color={isActive ? "#111111" : "#9CA3AF"} />
-                              <Text style={[styles.nestedItemText, isActive && styles.nestedItemTextActive]}>
-                                {item.title}
-                              </Text>
-                            </Pressable>
-                          );
-                        })}
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
+              {NAV_GROUPS_PRE.map(renderGroup)}
             </View>
 
-            {/* DEPARTMENTS SECTION */}
+            {/* Stage 4: per-department production & downstream handoffs (Lazer, Colour, etc.) */}
             <View style={styles.navContainer}>
-              <Text style={styles.sectionTitle}>DEPARTMENTS</Text>
+              <Text style={styles.sectionTitle}>4 · PRODUCTION & HANDOFFS</Text>
               
               {departments.map((dept) => {
                 const isExpanded = expandedDept === dept.id;
@@ -318,6 +355,11 @@ export default function ProtectedLayout() {
                   </View>
                 );
               })}
+            </View>
+
+            {/* Stages 5-6: QC and dispatch, plus everything below that supports the process but isn't a stage of it */}
+            <View style={styles.navContainer}>
+              {NAV_GROUPS_POST.map(renderGroup)}
             </View>
           </ScrollView>
 

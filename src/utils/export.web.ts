@@ -58,3 +58,49 @@ export async function exportToPDF(title: string, headers: string[], rows: Export
 export async function printTable(title: string, headers: string[], rows: ExportCell[][]) {
   return exportToPDF(title, headers, rows);
 }
+
+// Same "download a base64 blob the backend built" contract as export.ts's
+// version — UTI is an iOS-only concept (expo-sharing), ignored here.
+export async function exportBinaryFile(filename: string, base64: string, mimeType: string, _UTI?: string) {
+  const dot = filename.lastIndexOf(".");
+  const stem = dot > 0 ? filename.slice(0, dot) : filename;
+  const ext = dot > 0 ? filename.slice(dot) : "";
+
+  const byteChars = atob(base64);
+  const byteNumbers = new Array(byteChars.length);
+  for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+  const blob = new Blob([new Uint8Array(byteNumbers)], { type: mimeType });
+  downloadBlob(blob, `${sanitizeFilename(stem)}${ext}`);
+}
+
+// Same grid layout as export.ts's HTML version (5 cols x 7 rows per A4
+// page), built directly with jsPDF instead — printToFileAsync/html2canvas
+// aren't viable on web here (see exportToPDF's comment above), but jsPDF
+// can place images directly without needing to render arbitrary HTML.
+export async function exportQrLabelSheet(labelImagesBase64: string[], title = "QR Label Sheet") {
+  // @ts-ignore — no .d.ts alongside this deep-path JS build (see exportToPDF)
+  const { jsPDF } = await import("jspdf/dist/jspdf.es.min.js");
+  const doc = new jsPDF();
+
+  const pageWidth = 210;
+  const pageHeight = 297;
+  const margin = 10;
+  const gap = 4;
+  const cols = 5;
+  const rows = 7;
+  const cellW = (pageWidth - margin * 2 - gap * (cols - 1)) / cols;
+  const cellH = (pageHeight - margin * 2 - gap * (rows - 1)) / rows;
+  const perPage = cols * rows;
+
+  labelImagesBase64.forEach((png, idx) => {
+    const posInPage = idx % perPage;
+    if (idx > 0 && posInPage === 0) doc.addPage();
+    const col = posInPage % cols;
+    const row = Math.floor(posInPage / cols);
+    const x = margin + col * (cellW + gap);
+    const y = margin + row * (cellH + gap);
+    doc.addImage(`data:image/png;base64,${png}`, "PNG", x, y, cellW, cellH);
+  });
+
+  doc.save(`${sanitizeFilename(title)}.pdf`);
+}

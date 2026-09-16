@@ -255,6 +255,7 @@ import api from "@/services/api";
 import useAuthStore from "@/store/authStore";
 import { getSession } from "@/utils/storage";
 import SupplierOrderService from "@/services/supplierService";
+import { exportToExcel, ExportCell } from "@/utils/export";
 
 // Same modal-dropdown pattern used elsewhere (supplier-order.tsx).
 const SelectInput = ({ placeholder, value, options, onSelect }: any) => {
@@ -302,8 +303,19 @@ const IMPORT_MODULES = [
     endpoint: "excel",
     title: "Items / Products",
     description: "Any item type — pick the department it belongs to, the sheet does the rest.",
-    tags: [{ name: "CODE", required: true }, { name: "DECCRPTION", required: true }, { name: "MATERIAL", required: false }],
-    helperText: "Automatically extracts category series (e.g., F1) from the code prefix. Existing codes are updated.",
+    tags: [
+      { name: "CODE", required: true },
+      { name: "DECCRPTION", required: true },
+      { name: "MATERIAL", required: false },
+      { name: "UNIT", required: false },
+      { name: "PRICE", required: false },
+      { name: "BOX_QTY", required: false },
+      { name: "CARTON_QTY", required: false },
+      { name: "PCS_PER_SCAN", required: false },
+      { name: "REORDER_LEVEL", required: false },
+      { name: "OEM_COMPANY_CODE", required: false },
+    ],
+    helperText: "Automatically extracts category series (e.g., F1) from the code prefix. Existing codes are updated — blank optional cells leave the current value untouched. UNIT must be one of: pcs, gross, dozen, kg, gram, box, carton, set, roll, pair.",
   },
   {
     id: "racks",
@@ -323,6 +335,34 @@ const IMPORT_MODULES = [
   },
 ];
 
+// Column headers here must match exactly what amron-api/app/api/import_api.py
+// reads for each endpoint, so a filled-in template is guaranteed to import
+// cleanly. Department is picked from the dropdown below, not a sheet column,
+// so the same template works for every department.
+const TEMPLATE_DATA: Record<string, { headers: string[]; rows: ExportCell[][] }> = {
+  items: {
+    headers: ["CODE", "DECCRPTION", "MATERIAL", "UNIT", "PRICE", "BOX_QTY", "CARTON_QTY", "PCS_PER_SCAN", "REORDER_LEVEL", "OEM_COMPANY_CODE"],
+    rows: [
+      ["F1 1001 MA", "FLAT 1WAY SWITCH BASE", "PC WHITE", "pcs", 4.5, 100, 20, 1, 500, ""],
+      ["F2 1101 MA", "ROCKER 1 WAY SWITCH BASE", "PC WHITE", "pcs", 6.25, 50, 10, 1, 250, ""],
+    ],
+  },
+  racks: {
+    headers: ["CODE", "DESCRIPTION", "MAX_CAPACITY_KG"],
+    rows: [
+      ["RACK-A1", "Raw Material Storage - Aisle 1", 500],
+      ["RACK-A2", "Raw Material Storage - Aisle 2", 500],
+    ],
+  },
+  "rack-stock": {
+    headers: ["CODE", "QTY"],
+    rows: [
+      ["F1 1001 MA", 250],
+      ["F2 1101 MA", 100],
+    ],
+  },
+};
+
 export default function ImportExcelPage() {
   const { width } = useWindowDimensions();
   const isLargeScreen = width >= 768;
@@ -336,8 +376,17 @@ export default function ImportExcelPage() {
       .catch(() => setDepartments([]));
   }, []);
 
-  const handleDownloadTemplate = (title: string) => {
-    Alert.alert("Template", `Ready to download template for ${title}.`);
+  const handleDownloadTemplate = async (module: typeof IMPORT_MODULES[number]) => {
+    const template = TEMPLATE_DATA[module.id];
+    if (!template) {
+      Alert.alert("Error", "No template is defined for this import type yet.");
+      return;
+    }
+    try {
+      await exportToExcel(`Import Template - ${module.title}`, template.headers, template.rows);
+    } catch (error: any) {
+      Alert.alert("Download Failed", error.message || "Could not generate the template.");
+    }
   };
 
   const handleUploadExcel = async (module: typeof IMPORT_MODULES[number]) => {
@@ -473,7 +522,7 @@ export default function ImportExcelPage() {
                 </View>
 
                 <View style={styles.cardActions}>
-                  <Pressable style={styles.downloadBtn} onPress={() => handleDownloadTemplate(module.title)}>
+                  <Pressable style={styles.downloadBtn} onPress={() => handleDownloadTemplate(module)}>
                     <Feather name="download" size={16} color="#111111" style={{ marginRight: 8 }} />
                     <Text style={styles.downloadBtnText}>Download template</Text>
                   </Pressable>
