@@ -53,6 +53,7 @@ export default function ScanInOutScreen() {
   const [department, setDepartment] = useState<{ id: string; name: string } | null>(null);
   const [deptPickerVisible, setDeptPickerVisible] = useState(false);
   const [itemQR, setItemQR] = useState("");
+  const [manualItemDraft, setManualItemDraft] = useState("");
   const [rackQR, setRackQR] = useState("");
   const [quantity, setQuantity] = useState("1");
   const [chalan, setChalan] = useState("");
@@ -127,6 +128,7 @@ export default function ScanInOutScreen() {
   // enforces the same rule on submit (see /transactions/manual), so a
   // network hiccup here can't be used to bypass the gate.
   const resolveItemScan = async (code: string) => {
+    setManualItemDraft("");
     if (action !== "IN") {
       setItemQR(code);
       return;
@@ -324,7 +326,7 @@ export default function ScanInOutScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>1. Scan item QR</Text>
+            <Text style={styles.label}>1. Scan item QR (or type its code below)</Text>
             <Pressable style={styles.scanBtn} onPress={() => openCamera("ITEM")} disabled={checkingQc}>
               {checkingQc ? (
                 <ActivityIndicator size="small" color={colors.navy} style={{ marginRight: 8 }} />
@@ -335,14 +337,38 @@ export default function ScanInOutScreen() {
                 {checkingQc ? "Checking QC status…" : itemQR ? `Item: ${itemQR}` : "Scan item"}
               </Text>
             </Pressable>
+            <View style={styles.manualRow}>
+              <AppTextInput
+                value={manualItemDraft}
+                onChangeText={setManualItemDraft}
+                placeholder="or type item code, then press Go"
+                style={{ flex: 1 }}
+                onSubmitEditing={() => manualItemDraft.trim() && resolveItemScan(manualItemDraft.trim())}
+              />
+              <Pressable
+                style={styles.manualGoBtn}
+                onPress={() => manualItemDraft.trim() && resolveItemScan(manualItemDraft.trim())}
+                disabled={!manualItemDraft.trim() || checkingQc}
+              >
+                <Text style={styles.manualGoBtnText}>Go</Text>
+              </Pressable>
+            </View>
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>2. Scan rack QR (required)</Text>
+            <Text style={styles.label}>2. Scan rack QR (required) (or type it below)</Text>
             <Pressable style={styles.scanBtn} onPress={() => openCamera("RACK")}>
               <SymbolView name="camera" size={20} tintColor={colors.navy} style={{ marginRight: 8 }} />
               <Text style={styles.scanBtnText}>{rackQR ? `Rack: ${rackQR}` : "Scan rack"}</Text>
             </Pressable>
+            <View style={styles.manualRow}>
+              <AppTextInput
+                value={rackQR}
+                onChangeText={setRackQR}
+                placeholder="or type rack code"
+                style={{ flex: 1 }}
+              />
+            </View>
           </View>
 
           <View style={styles.row}>
@@ -465,6 +491,9 @@ const styles = StyleSheet.create({
 
   scanBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#F3F4F6", borderRadius: 8, padding: 14, borderWidth: 1, borderColor: "#E5E7EB" },
   scanBtnText: { fontSize: 14, fontWeight: "600", color: "#1F2937" },
+  manualRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
+  manualGoBtn: { backgroundColor: colors.navy, borderRadius: 8, paddingHorizontal: 16, height: 44, alignItems: "center", justifyContent: "center" },
+  manualGoBtnText: { color: colors.white, fontSize: 14, fontWeight: "700" },
 
   submitBtn: { flexDirection: "row", backgroundColor: "#A78BFA", padding: 14, borderRadius: 8, alignItems: "center", justifyContent: "center", marginTop: spacing.sm },
   submitBtnDisabled: { opacity: 0.6 },

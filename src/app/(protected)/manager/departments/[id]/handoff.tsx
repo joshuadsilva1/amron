@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, FlatList } from "react-native";
+import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, FlatList, TextInput } from "react-native";
 import Alert from "@/utils/alert";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
@@ -27,6 +27,8 @@ export default function AllotAndHandoffPage() {
   const [isScanning, setIsScanning] = useState(false);
   const [processingScan, setProcessingScan] = useState(false);
   const [scannedBins, setScannedBins] = useState<BinDetails[]>([]);
+  const [manualCode, setManualCode] = useState("");
+  const [addingManual, setAddingManual] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const fetchPageData = useCallback(async () => {
@@ -75,25 +77,43 @@ export default function AllotAndHandoffPage() {
     setIsScanning(true);
   };
 
-  const handleBarcodeScanned = async ({ data }: { data: string }) => {
-    if (processingScan) return;
-    if (scannedBins.some((bin) => bin.qr_code_string === data)) return;
-
-    setProcessingScan(true);
+  // Shared by the camera scanner and manual entry.
+  const addBinByCode = async (code: string) => {
+    if (scannedBins.some((bin) => bin.qr_code_string === code)) return;
     try {
-      const bin = await TransactionService.getBinDetails(data);
+      const bin = await TransactionService.getBinDetails(code);
 
       if (bin.qc_status !== "Passed") {
-        Alert.alert("Handoff Blocked", `Bin ${data} has QC status "${bin.qc_status}" — only Passed bins can be handed off.`);
+        Alert.alert("Handoff Blocked", `Bin ${code} has QC status "${bin.qc_status}" — only Passed bins can be handed off.`);
       } else if (bin.current_department !== departmentName) {
-        Alert.alert("Wrong Department", `Bin ${data} is currently in ${bin.current_department}, not ${departmentName}.`);
+        Alert.alert("Wrong Department", `Bin ${code} is currently in ${bin.current_department}, not ${departmentName}.`);
       } else {
         setScannedBins((prev) => [...prev, bin]);
       }
     } catch (error: any) {
-      Alert.alert("Scan Error", error?.response?.data?.error || "Invalid QR code.");
+      Alert.alert("Not Found", error?.response?.data?.error || "Invalid QR code.");
+    }
+  };
+
+  const handleBarcodeScanned = async ({ data }: { data: string }) => {
+    if (processingScan) return;
+    setProcessingScan(true);
+    try {
+      await addBinByCode(data);
     } finally {
       setTimeout(() => setProcessingScan(false), 1200);
+    }
+  };
+
+  const handleAddManual = async () => {
+    const code = manualCode.trim();
+    if (!code) return;
+    try {
+      setAddingManual(true);
+      await addBinByCode(code);
+      setManualCode("");
+    } finally {
+      setAddingManual(false);
     }
   };
 
@@ -193,6 +213,21 @@ export default function AllotAndHandoffPage() {
                 </Pressable>
               </View>
 
+              <View style={styles.manualRow}>
+                <TextInput
+                  style={styles.manualInput}
+                  value={manualCode}
+                  onChangeText={setManualCode}
+                  placeholder="or type a bin's QR code, then Add"
+                  placeholderTextColor="#9CA3AF"
+                  returnKeyType="go"
+                  onSubmitEditing={handleAddManual}
+                />
+                <Pressable style={styles.manualAddBtn} onPress={handleAddManual} disabled={!manualCode.trim() || addingManual}>
+                  {addingManual ? <ActivityIndicator size="small" color={colors.white} /> : <Text style={styles.manualAddBtnText}>Add</Text>}
+                </Pressable>
+              </View>
+
               {scannedBins.length > 0 && (
                 <View style={styles.binsList}>
                   {scannedBins.map((bin) => (
@@ -272,6 +307,10 @@ const styles = StyleSheet.create({
   scannedCountText: { fontSize: 14, fontWeight: "600", color: "#6B7280" },
   scanBtn: { flexDirection: "row", alignItems: "center", backgroundColor: "#8B5CF6", paddingVertical: 10, paddingHorizontal: 18, borderRadius: 10 },
   scanBtnText: { color: colors.white, fontSize: 14, fontWeight: "600" },
+  manualRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 12 },
+  manualInput: { flex: 1, backgroundColor: "#F9FAFB", borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 10, paddingHorizontal: 14, height: 44, fontSize: 14, color: "#111111" },
+  manualAddBtn: { backgroundColor: colors.navy, borderRadius: 10, paddingHorizontal: 20, height: 44, alignItems: "center", justifyContent: "center" },
+  manualAddBtnText: { color: colors.white, fontSize: 14, fontWeight: "700" },
 
   binsList: { marginTop: 16, gap: 10 },
   binRow: { flexDirection: "row", alignItems: "center", backgroundColor: "#F9FAFB", padding: 12, borderRadius: 10, borderWidth: 1, borderColor: "#E5E7EB" },

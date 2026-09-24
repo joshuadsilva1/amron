@@ -74,6 +74,7 @@ export default function ScanInOutPage() {
 
   // Form State
   const [scannedItemCode, setScannedItemCode] = useState<string | null>(null);
+  const [manualItemDraft, setManualItemDraft] = useState("");
   const [scannedRack, setScannedRack] = useState<string | null>(null);
   const [quantity, setQuantity] = useState("1");
   const [chalanNo, setChalanNo] = useState("");
@@ -159,6 +160,7 @@ export default function ScanInOutPage() {
   // enforces the same rule on submit (see /transactions/manual), so a
   // network hiccup here can't be used to bypass the gate.
   const resolveItemScan = async (code: string) => {
+    setManualItemDraft("");
     if (scanType !== "in") {
       setScannedItemCode(code);
       return;
@@ -348,7 +350,7 @@ export default function ScanInOutPage() {
               />
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>1. Scan item QR</Text>
+                <Text style={styles.label}>1. Scan item QR (or type its code below)</Text>
                 <Pressable
                   style={[styles.scanTriggerBtn, scannedItemCode && { borderColor: "#8B5CF6", backgroundColor: "#F5F3FF" }]}
                   onPress={() => openScanner("item")}
@@ -363,16 +365,43 @@ export default function ScanInOutPage() {
                     {checkingQc ? "Checking QC status…" : scannedItemCode ? `Scanned: ${scannedItemCode}` : "Scan item"}
                   </Text>
                 </Pressable>
+                <View style={styles.manualRow}>
+                  <TextInput
+                    style={[styles.textInput, { flex: 1 }]}
+                    value={manualItemDraft}
+                    onChangeText={setManualItemDraft}
+                    placeholder="or type item code, then press Go"
+                    placeholderTextColor="#9CA3AF"
+                    returnKeyType="go"
+                    onSubmitEditing={() => manualItemDraft.trim() && resolveItemScan(manualItemDraft.trim())}
+                  />
+                  <Pressable
+                    style={styles.manualGoBtn}
+                    onPress={() => manualItemDraft.trim() && resolveItemScan(manualItemDraft.trim())}
+                    disabled={!manualItemDraft.trim() || checkingQc}
+                  >
+                    <Text style={styles.manualGoBtnText}>Go</Text>
+                  </Pressable>
+                </View>
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>2. Scan rack QR (optional)</Text>
+                <Text style={styles.label}>2. Scan rack QR (optional) (or type it below)</Text>
                 <Pressable style={[styles.scanTriggerBtn, scannedRack && { borderColor: "#8B5CF6", backgroundColor: "#F5F3FF" }]} onPress={() => openScanner("rack")}>
                   <Feather name="camera" size={18} color={scannedRack ? "#8B5CF6" : "#374151"} style={{ marginRight: 8 }} />
                   <Text style={[styles.scanTriggerText, scannedRack && { color: "#8B5CF6" }]}>
                     {scannedRack ? `Scanned: ${scannedRack}` : "Scan rack"}
                   </Text>
                 </Pressable>
+                <View style={styles.manualRow}>
+                  <TextInput
+                    style={[styles.textInput, { flex: 1 }]}
+                    value={scannedRack || ""}
+                    onChangeText={setScannedRack}
+                    placeholder="or type rack code"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                </View>
               </View>
 
               <View style={styles.formRow}>
@@ -536,6 +565,9 @@ const styles = StyleSheet.create({
 
   scanTriggerBtn: { flexDirection: "row", alignItems: "center", justifyContent: "flex-start", paddingLeft: 16, backgroundColor: colors.white, borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 12, height: 48 },
   scanTriggerText: { fontSize: 14, fontWeight: "600", color: "#374151" },
+  manualRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
+  manualGoBtn: { backgroundColor: "#111111", borderRadius: 8, paddingHorizontal: 16, height: 44, alignItems: "center", justifyContent: "center" },
+  manualGoBtnText: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
 
   formRow: { flexDirection: "row", gap: 16, marginBottom: 16 },
   textInput: { backgroundColor: colors.white, borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 12, paddingHorizontal: 16, height: 48, fontSize: 15, color: "#111111" },

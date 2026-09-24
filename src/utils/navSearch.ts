@@ -136,7 +136,7 @@ export function buildDestinations(departments: { id: string | number; name: stri
     for (const sub of SUB_MENU) {
       push({
         title: `${dept.name} — ${sub.title}`,
-        section: "Production & Handoffs",
+        section: "Factory Floor",
         route: `/(protected)/manager/departments/${dept.id}/${sub.routeSuffix}`,
         icon: sub.icon,
         keywords: [dept.name, ...(SUBMENU_KEYWORDS[sub.routeSuffix] || [])],

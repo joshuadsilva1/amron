@@ -201,14 +201,23 @@ export default function ProtectedLayout() {
 
           <ScrollView style={styles.navScrollArea} showsVerticalScrollIndicator={false}>
             
-            {/* Stages 1-3: PO intake through purchasing, before any department gets involved */}
+            {/* Steps 1-3: PO intake through purchasing */}
             <View style={styles.navContainer}>
               {NAV_GROUPS_PRE.map(renderGroup)}
             </View>
 
-            {/* Stage 4: per-department production & downstream handoffs (Lazer, Colour, etc.) */}
+            {/* Steps 4-5 (Quality, Dispatch), then reference/support sections */}
             <View style={styles.navContainer}>
-              <Text style={styles.sectionTitle}>PRODUCTION & HANDOFFS</Text>
+              {NAV_GROUPS_POST.map(renderGroup)}
+            </View>
+
+            {/* Factory Floor: per-department production & handoffs (Lazer,
+                Colour, etc). Deliberately LAST, not sandwiched in the
+                middle — it's the biggest, most-nested section (a whole
+                sub-list per department) and was pushing Quality/Dispatch/
+                Reports/Admin below the fold. */}
+            <View style={styles.navContainer}>
+              <Text style={styles.sectionTitle}>FACTORY FLOOR (BY DEPARTMENT)</Text>
 
               {departments.length === 0 && (
                 <Text style={styles.noDeptsText}>No departments yet — add one under Admin.</Text>
@@ -219,7 +228,7 @@ export default function ProtectedLayout() {
 
                 return (
                   <View key={dept.id} style={styles.deptBlock}>
-                    <Pressable 
+                    <Pressable
                       style={[styles.deptHeader, isExpanded && styles.deptHeaderExpanded]}
                       onPress={() => setExpandedDept(isExpanded ? null : dept.id)}
                     >
@@ -254,11 +263,6 @@ export default function ProtectedLayout() {
                   </View>
                 );
               })}
-            </View>
-
-            {/* Stages 5-6: QC and dispatch, plus everything below that supports the process but isn't a stage of it */}
-            <View style={styles.navContainer}>
-              {NAV_GROUPS_POST.map(renderGroup)}
             </View>
           </ScrollView>
 

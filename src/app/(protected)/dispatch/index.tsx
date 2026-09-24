@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, ScrollView } from "react-native";
+import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, ScrollView, TextInput } from "react-native";
 import Alert from "@/utils/alert";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { router } from "expo-router";
@@ -15,12 +15,14 @@ import typography from "@/theme/typography";
 
 export default function DispatchScreen() {
   const [permission, requestPermission] = useCameraPermissions();
-  
+
   const [scannedBins, setScannedBins] = useState<BinDetails[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [processingScan, setProcessingScan] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  
+  const [manualCode, setManualCode] = useState("");
+  const [addingManual, setAddingManual] = useState(false);
+
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
 
@@ -38,36 +40,44 @@ export default function DispatchScreen() {
     }
   }
 
-  if (!permission) return <View />;
-  if (!permission.granted) {
-    return (
-      <View style={styles.center}>
-        <Text style={styles.permissionText}>Camera access is required to scan bins for dispatch.</Text>
-        <AppButton title="Grant Permission" onPress={requestPermission} />
-      </View>
-    );
-  }
-
-  const handleBarcodeScanned = async ({ data }: { data: string }) => {
-    if (processingScan) return;
-    
-    if (scannedBins.some((bin) => bin.qr_code_string === data)) return; 
-
-    setProcessingScan(true);
+  // Shared by both the camera scanner and manual entry — one bin, looked
+  // up and QC-checked, added to the list if it passes.
+  const addBinByCode = async (code: string) => {
+    if (scannedBins.some((bin) => bin.qr_code_string === code)) return;
 
     try {
-      const binData = await TransactionService.getBinDetails(data);
-      
+      const binData = await TransactionService.getBinDetails(code);
+
       // Dispatch Safety Net: Cannot ship unverified items
       if (binData.qc_status !== "Passed") {
-        Alert.alert("Dispatch Blocked", `Bin ${data} has QC Status: ${binData.qc_status}`);
+        Alert.alert("Dispatch Blocked", `Bin ${code} has QC Status: ${binData.qc_status}`);
       } else {
         setScannedBins((prev) => [...prev, binData]);
       }
     } catch (error: any) {
-      Alert.alert("Scan Error", error?.message || "Invalid QR Code.");
+      Alert.alert("Not Found", error?.response?.data?.error || error?.message || "Invalid QR code.");
+    }
+  };
+
+  const handleBarcodeScanned = async ({ data }: { data: string }) => {
+    if (processingScan) return;
+    setProcessingScan(true);
+    try {
+      await addBinByCode(data);
     } finally {
       setTimeout(() => setProcessingScan(false), 1500);
+    }
+  };
+
+  const handleAddManual = async () => {
+    const code = manualCode.trim();
+    if (!code) return;
+    try {
+      setAddingManual(true);
+      await addBinByCode(code);
+      setManualCode("");
+    } finally {
+      setAddingManual(false);
     }
   };
 
@@ -153,7 +163,34 @@ export default function DispatchScreen() {
 
           <View style={styles.infoBox}>
             <Text style={styles.infoText}>Ready to Ship: {scannedBins.length} bins</Text>
-            <AppButton title="+ Scan Bins" onPress={() => setIsScanning(true)} />
+            <AppButton
+              title="+ Scan Bins"
+              onPress={async () => {
+                if (!permission?.granted) {
+                  const { granted } = await requestPermission();
+                  if (!granted) {
+                    Alert.alert("Camera unavailable", "You can still add bins by typing their code below.");
+                    return;
+                  }
+                }
+                setIsScanning(true);
+              }}
+            />
+          </View>
+
+          <View style={styles.manualAddRow}>
+            <TextInput
+              style={styles.manualInput}
+              value={manualCode}
+              onChangeText={setManualCode}
+              placeholder="or type a bin's QR code, then Add"
+              placeholderTextColor={colors.secondary}
+              returnKeyType="go"
+              onSubmitEditing={handleAddManual}
+            />
+            <Pressable style={styles.manualAddBtn} onPress={handleAddManual} disabled={!manualCode.trim() || addingManual}>
+              {addingManual ? <ActivityIndicator size="small" color={colors.white} /> : <Text style={styles.manualAddBtnText}>Add</Text>}
+            </Pressable>
           </View>
 
           <FlatList
@@ -212,6 +249,11 @@ const styles = StyleSheet.create({
 
   infoBox: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: spacing.lg },
   infoText: { fontSize: typography.h3, fontWeight: "800", color: colors.navy },
+
+  manualAddRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
+  manualInput: { flex: 1, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 14, height: 44, fontSize: 14, color: colors.text },
+  manualAddBtn: { backgroundColor: colors.navy, borderRadius: 10, paddingHorizontal: 20, height: 44, alignItems: "center", justifyContent: "center" },
+  manualAddBtnText: { color: colors.white, fontSize: 14, fontWeight: "700" },
   
   listContent: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl, gap: spacing.sm },
   binCard: { flexDirection: "row", alignItems: "center", backgroundColor: colors.white, padding: spacing.md, borderRadius: 12, borderWidth: 1, borderColor: colors.border },

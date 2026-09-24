@@ -9,13 +9,17 @@ export interface NavGroup {
   items: { title: string; icon: string; route: string }[];
 }
 
-// The sidebar reads top-to-bottom as the actual factory process — a PO
-// comes in from a client (1), gets checked against its recipe (2), raw
-// material gets bought if short (3), each department fulfills its slice
-// and hands off downstream as needed — Lazer, Colour, etc. (4, the
-// per-department DEPARTMENTS block rendered between _PRE and _POST below),
-// QC (5), then dispatch (6). Everything after that is reference/support
-// material that isn't part of any one PO's journey, not another stage.
+// The numbered groups (1-5) are the actual order work happens in for one
+// PO: it comes in (1), gets checked against its recipe and a production
+// plan is made (2), raw material gets bought if short (3), QC signs off
+// on what departments produced (4), it ships (5). "Factory Floor" — the
+// day-to-day per-department work that happens between steps 3 and 4 — is
+// rendered last, on purpose: it's the biggest, most-nested part of the
+// menu (a whole sub-list per department), and having it in the middle
+// pushed Quality/Dispatch/Reports/Admin below the fold for anyone
+// scrolling past it. Everything unnumbered (Inventory, Workforce, Reports,
+// Admin) is reference/support material you dip into, not a step you pass
+// through once per PO.
 export const NAV_GROUPS_PRE: NavGroup[] = [
   {
     section: "Overview",
@@ -28,7 +32,7 @@ export const NAV_GROUPS_PRE: NavGroup[] = [
     ],
   },
   {
-    section: "Customer Orders",
+    section: "1. Sales & Orders",
     groupIcon: "file-plus",
     items: [
       { title: "New Purchase Order", icon: "plus-circle", route: "/(protected)/manager/purchase-order/new" },
@@ -37,15 +41,16 @@ export const NAV_GROUPS_PRE: NavGroup[] = [
     ],
   },
   {
-    section: "Recipes & Requirements",
+    section: "2. Planning",
     groupIcon: "list",
     items: [
       { title: "Recipes (BOM)", icon: "list", route: "/(protected)/manager/recipes" },
       { title: "Material Requirements", icon: "alert-triangle", route: "/(protected)/manager/mrp" },
+      { title: "Production Planning", icon: "calendar", route: "/(protected)/manager/production" },
     ],
   },
   {
-    section: "Purchasing",
+    section: "3. Purchasing",
     groupIcon: "shopping-cart",
     items: [
       { title: "Suppliers", icon: "truck", route: "/(protected)/manager/suppliers" },
@@ -56,13 +61,13 @@ export const NAV_GROUPS_PRE: NavGroup[] = [
 
 export const NAV_GROUPS_POST: NavGroup[] = [
   {
-    section: "Quality",
+    section: "4. Quality Check",
     items: [
       { title: "Quality Control", icon: "check-circle", route: "/(protected)/quality" },
     ],
   },
   {
-    section: "Dispatch",
+    section: "5. Dispatch",
     groupIcon: "send",
     items: [
       { title: "Dispatch Outward", icon: "send", route: "/(protected)/dispatch" },
@@ -71,13 +76,7 @@ export const NAV_GROUPS_POST: NavGroup[] = [
     ],
   },
   {
-    section: "Production Planning",
-    items: [
-      { title: "Production Planning", icon: "calendar", route: "/(protected)/manager/production" },
-    ],
-  },
-  {
-    section: "Inventory & Master Data",
+    section: "Inventory & Stock",
     groupIcon: "database",
     items: [
       { title: "Items & QR", icon: "target", route: "/(protected)/manager/items" },
@@ -90,7 +89,7 @@ export const NAV_GROUPS_POST: NavGroup[] = [
     ],
   },
   {
-    section: "Workforce",
+    section: "Workforce & Payroll",
     groupIcon: "users",
     items: [
       { title: "Attendance", icon: "calendar", route: "/(protected)/manager/attendance" },
@@ -111,9 +110,9 @@ export const NAV_GROUPS_POST: NavGroup[] = [
   },
 ];
 
-// Per-department submenu (the DEPARTMENTS block, stage 4), in the order
-// the work actually happens: see what's owed, buy what's short, do the
-// work, hand it off downstream, keep the physical count honest.
+// Per-department submenu (the Factory Floor block), in the order the work
+// actually happens: see what's owed, buy what's short, do the work, hand
+// it off downstream, keep the physical count honest.
 export const SUB_MENU = [
   { title: "Internal PO", icon: "inbox", routeSuffix: "internal-po" },
   { title: "Stock vs PO", icon: "activity", routeSuffix: "stock-po" },

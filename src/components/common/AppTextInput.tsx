@@ -1,8 +1,10 @@
 import React from "react";
 import {
+  StyleProp,
   StyleSheet,
   TextInput,
   View,
+  ViewStyle,
 } from "react-native";
 
 import colors from "@/theme/colors";
@@ -16,6 +18,13 @@ interface Props {
   keyboardType?: any;
 
   maxLength?: number;
+
+  // Optional escape hatches — e.g. `style={{ flex: 1 }}` to sit next to a
+  // button in a row, or `onSubmitEditing` so pressing Enter/Go on the
+  // keyboard submits a manual code entry instead of requiring a tap.
+  style?: StyleProp<ViewStyle>;
+  onSubmitEditing?: () => void;
+  autoCapitalize?: "none" | "sentences" | "words" | "characters";
 }
 
 export default function AppTextInput({
@@ -24,15 +33,21 @@ export default function AppTextInput({
   placeholder,
   keyboardType,
   maxLength,
+  style,
+  onSubmitEditing,
+  autoCapitalize,
 }: Props) {
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, style]}>
       <TextInput
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
         keyboardType={keyboardType}
         maxLength={maxLength}
+        onSubmitEditing={onSubmitEditing}
+        returnKeyType={onSubmitEditing ? "go" : undefined}
+        autoCapitalize={autoCapitalize}
         style={styles.input}
       />
     </View>
