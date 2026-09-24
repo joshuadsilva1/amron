@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, Platform, ActivityIndicator, TextInput, Modal, FlatList } from "react-native";
 import SearchBar from "@/components/common/SearchBar";
+import DatePickerInput from "@/components/common/DatePickerInput";
 import { useSearch } from "@/utils/useSearch";
 import Alert from "@/utils/alert";
 import { Feather } from "@expo/vector-icons";
@@ -203,12 +204,9 @@ export default function WorkAllotmentPage() {
               <Pressable style={[styles.dateChip, productionDate === tomorrowISO() && styles.dateChipSelected]} onPress={() => setProductionDate(tomorrowISO())}>
                 <Text style={[styles.dateChipText, productionDate === tomorrowISO() && styles.dateChipTextSelected]}>Tomorrow</Text>
               </Pressable>
-              <TextInput
-                style={styles.dateInput}
-                value={productionDate}
-                onChangeText={setProductionDate}
-                placeholder="YYYY-MM-DD"
-              />
+              <View style={{ flex: 1 }}>
+                <DatePickerInput value={productionDate} onChange={setProductionDate} placeholder="Or pick a date..." />
+              </View>
             </View>
 
             <View style={styles.formRow}>

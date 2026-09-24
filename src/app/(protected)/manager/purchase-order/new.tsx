@@ -7,6 +7,7 @@ import { router } from "expo-router";
 import OrderService from "@/services/orderService";
 import ClientService, { Client } from "@/services/clientService";
 import OEMService, { OEMMapping } from "@/services/oemService";
+import DatePickerInput from "@/components/common/DatePickerInput";
 
 import colors from "@/theme/colors";
 import spacing from "@/theme/spacing";
@@ -173,13 +174,7 @@ export default function NewPOScreen() {
         <View style={styles.formRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.label}>Due date (optional)</Text>
-            <TextInput
-              style={styles.textInput}
-              value={dueDate}
-              onChangeText={setDueDate}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor="#9CA3AF"
-            />
+            <DatePickerInput value={dueDate} onChange={setDueDate} placeholder="Select due date..." />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.label}>Chalan number (optional)</Text>

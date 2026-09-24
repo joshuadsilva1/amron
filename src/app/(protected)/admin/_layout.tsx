@@ -5,10 +5,12 @@ import RequireModuleAccess from "@/components/common/RequireModuleAccess";
 
 const ADMIN_TABS = [
   { name: "Users", route: "/(protected)/admin/users" },
+  { name: "Roles", route: "/(protected)/admin/roles" },
+  { name: "Permissions", route: "/(protected)/admin/permissions" },
   { name: "Modules", route: "/(protected)/admin/modules" },
+  { name: "Routes", route: "/(protected)/admin/routes" },
   { name: "Department", route: "/(protected)/admin/departments" },
   { name: "Routing Editor", route: "/(protected)/admin/routing" },
-    { name: "Roles", route: "/(protected)/admin/roles" },
   // WhatsApp tab hidden for now (user request) — the screen and backend
   // are untouched, just not linked from the tab bar. Re-add the row below
   // to bring it back: { name: "WhatsApp", route: "/(protected)/admin/whatsapp" },

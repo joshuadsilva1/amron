@@ -11,6 +11,7 @@ import { useSortable } from "@/utils/useSortable";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
+import DatePickerInput from "@/components/common/DatePickerInput";
 
 // Helper to format Date for the UI (DD/MM/YYYY) and Backend (YYYY-MM-DD)
 const formatDateUI = (date: Date) => {
@@ -212,10 +213,29 @@ export default function AttendancePage() {
         <View style={styles.dateControlCard}>
           <View style={styles.dateControlInner}>
             <Text style={styles.dateLabel}>Date</Text>
-            <View style={styles.dateInputWrapper}>
-              <Text style={styles.dateInputText}>{formatDateUI(currentDate)}</Text>
-              <Feather name="calendar" size={16} color="#6B7280" />
+            <Pressable
+              onPress={() => setCurrentDate((d) => { const n = new Date(d); n.setDate(n.getDate() - 1); return n; })}
+              hitSlop={10}
+              style={{ marginRight: 8 }}
+            >
+              <Feather name="chevron-left" size={18} color="#6B7280" />
+            </Pressable>
+            <View style={{ width: 160 }}>
+              <DatePickerInput
+                value={formatDateAPI(currentDate)}
+                onChange={(iso) => { if (iso) setCurrentDate(new Date(iso + "T00:00:00")); }}
+              />
             </View>
+            <Pressable
+              onPress={() => setCurrentDate((d) => { const n = new Date(d); n.setDate(n.getDate() + 1); return n; })}
+              hitSlop={10}
+              style={{ marginHorizontal: 8 }}
+            >
+              <Feather name="chevron-right" size={18} color="#6B7280" />
+            </Pressable>
+            <Pressable onPress={() => setCurrentDate(new Date())} style={styles.todayChip}>
+              <Text style={styles.todayChipText}>Today</Text>
+            </Pressable>
             <Text style={styles.summaryText}>
               {summary.present_count} present · {summary.total_staff} staff
             </Text>
@@ -360,6 +380,8 @@ const styles = StyleSheet.create({
   dateControlInner: { flexDirection: "row", alignItems: "center" },
   dateLabel: { fontSize: 15, fontWeight: "600", color: "#111111", marginRight: spacing.md },
   dateInputWrapper: { flexDirection: "row", alignItems: "center", backgroundColor: colors.white, borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, marginRight: spacing.lg },
+  todayChip: { backgroundColor: "#F3F4F6", borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12, marginRight: spacing.lg },
+  todayChipText: { fontSize: 13, fontWeight: "700", color: "#374151" },
   dateInputText: { fontSize: 14, color: "#111111", marginRight: 12 },
   summaryText: { fontSize: 15, color: "#6B7280" },
 

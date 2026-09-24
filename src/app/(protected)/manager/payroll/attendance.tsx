@@ -4,6 +4,7 @@ import Alert from "@/utils/alert";
 import { SymbolView } from "expo-symbols";
 
 import PayrollService, { AttendanceRecord } from "@/services/payrollService";
+import DatePickerInput from "@/components/common/DatePickerInput";
 import colors from "@/theme/colors";
 import spacing from "@/theme/spacing";
 import typography from "@/theme/typography";
@@ -70,7 +71,9 @@ export default function AttendanceScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Daily Attendance</Text>
-        <Text style={styles.dateLabel}>{selectedDate}</Text>
+        <View style={{ width: 160 }}>
+          <DatePickerInput value={selectedDate} onChange={(iso) => iso && setSelectedDate(iso)} />
+        </View>
       </View>
 
       {loading ? (

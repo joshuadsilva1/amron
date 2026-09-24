@@ -109,9 +109,10 @@ export default function ProtectedLayout() {
     if (visibleItems.length === 0) return null;
     const group: NavGroup = { ...rawGroup, items: visibleItems };
 
-    // Overview items and single-item groups render flat — no point
-    // collapsing a "section" that's just one destination.
-    if (group.alwaysOpen || group.items.length === 1) {
+    // Overview renders flat with no label at all — it's the one group
+    // that's always visible regardless of section, so a header would just
+    // be noise.
+    if (group.alwaysOpen) {
       return group.items.map((item) => {
         const isActive = item.route === "/(protected)/manager"
           ? pathname === "/(protected)/manager"
@@ -130,6 +131,30 @@ export default function ProtectedLayout() {
           </Pressable>
         );
       });
+    }
+
+    // A single-item group still shows its section label (e.g. "4. Quality
+    // Check") — just without a chevron/collapse, since there's nothing to
+    // expand. Without this, a numbered single-item step's number was
+    // invisible (only its one button showed), breaking the "read the
+    // sidebar top-to-bottom as the process" idea the numbering is for.
+    if (group.items.length === 1) {
+      const item = group.items[0];
+      const isActive = pathname.startsWith(item.route);
+      return (
+        <View key={group.section} style={styles.flatGroupBlock}>
+          <Text style={styles.flatGroupLabel}>{group.section}</Text>
+          <Pressable
+            style={[styles.navItem, isActive && styles.navItemActive]}
+            onPress={() => handleNavigation(item.route)}
+          >
+            <Feather name={item.icon as any} size={18} color={isActive ? "#111111" : "#9CA3AF"} />
+            <Text style={[styles.navText, isActive && styles.navTextActive]}>
+              {item.title}
+            </Text>
+          </Pressable>
+        </View>
+      );
     }
 
     const isOpen = isGroupOpen(group.section);
@@ -321,6 +346,8 @@ const styles = StyleSheet.create({
 
   // Departments Section
   sectionTitle: { color: "#6B7280", fontSize: 11, fontWeight: "700", letterSpacing: 0.8, marginTop: 12, marginBottom: 12, paddingHorizontal: 12 },
+  flatGroupBlock: { marginBottom: 4 },
+  flatGroupLabel: { color: "#6B7280", fontSize: 10, fontWeight: "700", letterSpacing: 0.6, textTransform: "uppercase", paddingHorizontal: 16, marginBottom: 4, marginTop: 8 },
   noDeptsText: { color: "#6B7280", fontSize: 13, paddingHorizontal: 12, marginBottom: 12 },
   
   deptBlock: { marginBottom: 4 },
