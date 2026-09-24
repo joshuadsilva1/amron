@@ -37,6 +37,16 @@ export default function ModulesManagementScreen() {
       keyExtractor={(item) => item.id.toString()}
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.listContent}
+      ListEmptyComponent={
+        <View style={styles.center}>
+          <Feather name="toggle-left" size={40} color="#D1D5DB" style={{ marginBottom: 12 }} />
+          <Text style={styles.emptyTitle}>No modules configured yet</Text>
+          <Text style={styles.emptyText}>
+            Modules gate which nav links a role can see (see Roles & Permissions). There's currently no way to add
+            one from this screen — ask an engineer to add a row, or this can be built if you need it.
+          </Text>
+        </View>
+      }
       renderItem={({ item }) => (
         <View style={styles.card}>
           <View style={styles.moduleInfo}>
@@ -61,8 +71,10 @@ export default function ModulesManagementScreen() {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  listContent: { paddingBottom: 40 },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 40, paddingTop: 80 },
+  listContent: { paddingBottom: 40, flexGrow: 1 },
+  emptyTitle: { fontSize: 16, fontWeight: "700", color: "#111111", marginBottom: 6 },
+  emptyText: { fontSize: 13, color: "#6B7280", textAlign: "center", lineHeight: 19 },
   card: { backgroundColor: "#FFFFFF", borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", padding: 20, marginBottom: 12, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   moduleInfo: { flexDirection: "row", alignItems: "center", flex: 1, paddingRight: 16 },
   iconWrapper: { width: 44, height: 44, borderRadius: 12, backgroundColor: "#EDE9FE", alignItems: "center", justifyContent: "center", marginRight: 16 },

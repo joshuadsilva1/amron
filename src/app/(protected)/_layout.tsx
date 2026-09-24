@@ -56,21 +56,8 @@ export default function ProtectedLayout() {
       try {
         const res = await api.get("/departments");
         const data = res.data?.data || res.data || [];
-        if (data.length > 0) {
-          setDepartments(data);
-          setExpandedDept(data[0].id); // Auto-expand first item
-        } else {
-          // Fallback if DB is empty
-          setDepartments([
-            { id: "1", name: "Moulding" },
-            { id: "2", name: "Brasspart" },
-            { id: "3", name: "Lazer" },
-            { id: "4", name: "Fitting" },
-            { id: "5", name: "Box Pouch Label" },
-            { id: "6", name: "Finished Goods" },
-          ]);
-          setExpandedDept("1");
-        }
+        setDepartments(data);
+        if (data.length > 0) setExpandedDept(data[0].id); // Auto-expand first item
       } catch (e) {
         console.error("Failed to fetch departments", e);
       }
@@ -222,7 +209,11 @@ export default function ProtectedLayout() {
             {/* Stage 4: per-department production & downstream handoffs (Lazer, Colour, etc.) */}
             <View style={styles.navContainer}>
               <Text style={styles.sectionTitle}>PRODUCTION & HANDOFFS</Text>
-              
+
+              {departments.length === 0 && (
+                <Text style={styles.noDeptsText}>No departments yet — add one under Admin.</Text>
+              )}
+
               {departments.map((dept) => {
                 const isExpanded = expandedDept === dept.id;
 
@@ -326,6 +317,7 @@ const styles = StyleSheet.create({
 
   // Departments Section
   sectionTitle: { color: "#6B7280", fontSize: 11, fontWeight: "700", letterSpacing: 0.8, marginTop: 12, marginBottom: 12, paddingHorizontal: 12 },
+  noDeptsText: { color: "#6B7280", fontSize: 13, paddingHorizontal: 12, marginBottom: 12 },
   
   deptBlock: { marginBottom: 4 },
   deptHeader: { flexDirection: "row", alignItems: "center", paddingVertical: 12, paddingHorizontal: 16, borderRadius: 20 },

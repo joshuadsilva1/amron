@@ -67,7 +67,7 @@ const ROUTE_KEYWORDS: Record<string, string[]> = {
   "admin/departments": ["departments", "add department", "levels", "hierarchy", "finished goods department"],
   "admin/routing": ["routes", "routing", "allowed movement", "handoff rules", "flow"],
   "admin/modules": ["modules", "features", "enable", "turn on"],
-  "admin/whatsapp": ["whatsapp settings", "gupshup", "bot", "api key", "sender number"],
+  // admin/whatsapp keywords removed along with its tab — see admin/_layout.tsx
   "admin": ["settings", "admin", "configuration", "setup"],
   "chat": ["message", "talk", "conversation", "team chat"],
   "settings": ["profile", "account", "preferences", "logout", "sign out"],
@@ -101,7 +101,8 @@ const EXTRA_DESTINATIONS: { title: string; section: string; route: string; icon:
   { title: "Departments (Admin)", section: "Admin", route: "/(protected)/admin/departments", icon: "layers" },
   { title: "Department Routing", section: "Admin", route: "/(protected)/admin/routing", icon: "git-branch" },
   { title: "Modules", section: "Admin", route: "/(protected)/admin/modules", icon: "toggle-right" },
-  { title: "WhatsApp Settings", section: "Admin", route: "/(protected)/admin/whatsapp", icon: "message-circle" },
+  { title: "System Settings", section: "Admin", route: "/(protected)/admin/settings", icon: "sliders" },
+  { title: "Audit Log", section: "Admin", route: "/(protected)/admin/audit-log", icon: "file-text" },
   { title: "Settings", section: "Account", route: "/(protected)/settings", icon: "sliders" },
 ];
 

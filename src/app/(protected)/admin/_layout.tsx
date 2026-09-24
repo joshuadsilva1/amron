@@ -9,7 +9,9 @@ const ADMIN_TABS = [
   { name: "Department", route: "/(protected)/admin/departments" },
   { name: "Routing Editor", route: "/(protected)/admin/routing" },
     { name: "Roles", route: "/(protected)/admin/roles" },
-  { name: "WhatsApp", route: "/(protected)/admin/whatsapp" },
+  // WhatsApp tab hidden for now (user request) — the screen and backend
+  // are untouched, just not linked from the tab bar. Re-add the row below
+  // to bring it back: { name: "WhatsApp", route: "/(protected)/admin/whatsapp" },
   { name: "Settings", route: "/(protected)/admin/settings" },
   { name: "Audit Log", route: "/(protected)/admin/audit-log" },
 ];
