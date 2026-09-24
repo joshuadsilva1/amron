@@ -10,7 +10,7 @@ import typography from "@/theme/typography";
 export default function PayrollReportScreen() {
   const [report, setReport] = useState<PayrollSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const currentMonth = "2026-07"; // Hardcoded default for testing
+  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
 
   useEffect(() => {
     fetchReport();
