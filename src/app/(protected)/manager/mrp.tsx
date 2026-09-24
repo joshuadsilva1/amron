@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, RefreshControl, Modal, FlatList } from "react-native";
+import SearchBar from "@/components/common/SearchBar";
+import { useSearch } from "@/utils/useSearch";
 import Alert from "@/utils/alert";
 import { Feather } from "@expo/vector-icons";
 
@@ -40,6 +42,7 @@ export default function MRPScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [groups, setGroups] = useState<MRPSupplierGroup[]>([]);
+  const search = useSearch(groups);
   const [shortageCount, setShortageCount] = useState(0);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [assigningItemId, setAssigningItemId] = useState<string | null>(null);
@@ -124,6 +127,13 @@ export default function MRPScreen() {
         </Pressable>
       </View>
 
+      <SearchBar
+        value={search.query}
+        onChangeText={search.setQuery}
+        placeholder="Search shortages by material or supplier..."
+        resultCount={search.filtered.length}
+        totalCount={groups.length}
+      />
       {loading ? (
         <ActivityIndicator size="large" color="#8B5CF6" style={{ marginTop: 60 }} />
       ) : groups.length === 0 ? (
@@ -132,7 +142,7 @@ export default function MRPScreen() {
           <Text style={styles.emptyText}>Nothing short. All open orders are covered by stock + incoming supplies.</Text>
         </View>
       ) : (
-        groups.map((group) => (
+        search.filtered.map((group) => (
           <View key={group.supplier_id || "unassigned"} style={styles.groupCard}>
             <View style={styles.groupHeader}>
               <View style={{ flex: 1 }}>

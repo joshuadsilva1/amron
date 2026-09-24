@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator } from "react-native";
+import SearchBar from "@/components/common/SearchBar";
+import { useSearch } from "@/utils/useSearch";
 import Alert from "@/utils/alert";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
@@ -17,6 +19,7 @@ export default function VerifyHandoffPage() {
 
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState<PendingChallan[]>([]);
+  const search = useSearch(pending);
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
@@ -77,6 +80,14 @@ export default function VerifyHandoffPage() {
           </View>
         </View>
 
+        <SearchBar
+          value={search.query}
+          onChangeText={search.setQuery}
+          placeholder="Search pending handoffs by challan, item, department..."
+          resultCount={search.filtered.length}
+          totalCount={pending.length}
+        />
+
         {loading ? (
           <ActivityIndicator size="large" color="#8B5CF6" style={{ marginTop: 60 }} />
         ) : pending.length === 0 ? (
@@ -84,7 +95,7 @@ export default function VerifyHandoffPage() {
             <Text style={styles.emptyText}>Nothing waiting on verification right now.</Text>
           </View>
         ) : (
-          pending.map((challan) => (
+          search.filtered.map((challan) => (
             <View key={challan.id} style={styles.card}>
               <View style={styles.cardHeader}>
                 <View style={{ flex: 1 }}>

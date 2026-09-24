@@ -7,6 +7,8 @@ import colors from "@/theme/colors";
 import spacing from "@/theme/spacing";
 import api from "@/services/api";
 import { useSortable } from "@/utils/useSortable";
+import SearchBar from "@/components/common/SearchBar";
+import { useSearch } from "@/utils/useSearch";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
 
 const UNIT_OPTIONS = ["pcs", "kg", "boxes", "meters"];
@@ -118,7 +120,10 @@ export default function ItemsPage() {
     pcs_per_scan: "1",
     price: "",
     box_qty: "",
-    carton_qty: ""
+    carton_qty: "",
+    // Only meaningful for moulded parts — drives the White->Colour
+    // routing block on recipes. "" means "not colour-tracked".
+    powder_colour: ""
   });
 
   useEffect(() => {
@@ -148,7 +153,8 @@ export default function ItemsPage() {
   const filteredItems = items.filter(item =>
     activeTab === "All" ? true : getDepartmentName(item.department_id) === activeTab
   );
-  const { sorted: sortedItems, sortKey, sortDir, toggleSort } = useSortable<any>(filteredItems);
+  const search = useSearch(filteredItems, (i: any) => `${Object.values(i).join(" ")} ${getDepartmentName(i.department_id)}`);
+  const { sorted: sortedItems, sortKey, sortDir, toggleSort } = useSortable<any>(search.filtered);
 
   const openEditModal = (item?: any) => {
     if (item) {
@@ -164,13 +170,15 @@ export default function ItemsPage() {
         pcs_per_scan: String(item.pcs_per_scan || "1"),
         price: String(item.price || ""),
         box_qty: String(item.box_qty || ""),
-        carton_qty: String(item.carton_qty || "")
+        carton_qty: String(item.carton_qty || ""),
+        powder_colour: item.powder_colour || ""
       });
     } else {
       setSelectedItem(null);
       setForm({
-        item_code: "", oem_company_code: "", department_id: "", unit_of_measure: "pcs", 
-        name: "", category: "", subcategory: "", pcs_per_scan: "1", price: "", box_qty: "", carton_qty: ""
+        item_code: "", oem_company_code: "", department_id: "", unit_of_measure: "pcs",
+        name: "", category: "", subcategory: "", pcs_per_scan: "1", price: "", box_qty: "", carton_qty: "",
+        powder_colour: ""
       });
     }
     setEditModalVisible(true);
@@ -246,6 +254,13 @@ export default function ItemsPage() {
           </ScrollView>
         </View>
 
+        <SearchBar
+          value={search.query}
+          onChangeText={search.setQuery}
+          placeholder="Search items by code, name, department..."
+          resultCount={search.filtered.length}
+          totalCount={filteredItems.length}
+        />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
           <View style={styles.tableCard}>
             <View style={styles.tableHeader}>
@@ -259,7 +274,7 @@ export default function ItemsPage() {
 
             {loading ? (
                <ActivityIndicator size="large" color="#8B5CF6" style={{ marginVertical: 60 }} />
-            ) : filteredItems.length === 0 ? (
+            ) : search.filtered.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyStateText}>No items found.</Text>
               </View>
@@ -456,14 +471,39 @@ export default function ItemsPage() {
               <View style={styles.formRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.inputLabel}>Carton qty</Text>
-                  <TextInput 
-                    style={styles.textInput} 
-                    value={form.carton_qty} 
+                  <TextInput
+                    style={styles.textInput}
+                    value={form.carton_qty}
                     keyboardType="numeric"
                     onChangeText={(val) => setForm({ ...form, carton_qty: val })}
                   />
                 </View>
                 <View style={{ flex: 1 }} />
+              </View>
+
+              <View style={styles.formRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inputLabel}>Powder colour (moulded parts only)</Text>
+                  <View style={{ flexDirection: "row", gap: 8, marginTop: 4 }}>
+                    {["", "White", "Grey", "Black"].map((c) => {
+                      const active = form.powder_colour === c;
+                      return (
+                        <Pressable
+                          key={c || "none"}
+                          style={[styles.colourOption, active && styles.colourOptionActive]}
+                          onPress={() => setForm({ ...form, powder_colour: c })}
+                        >
+                          <Text style={[styles.colourOptionText, active && styles.colourOptionTextActive]}>
+                            {c || "N/A"}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  <Text style={styles.helperTextSmall}>
+                    Only Black/Grey moulded parts can be routed to the Colour department — White never can.
+                  </Text>
+                </View>
               </View>
 
             </ScrollView>
@@ -541,6 +581,11 @@ const styles = StyleSheet.create({
   formRow: { flexDirection: "row", gap: 16, marginBottom: 16 },
   inputLabel: { fontSize: 14, fontWeight: "600", color: "#111111", marginBottom: 8 },
   textInput: { backgroundColor: "#F9FAFB", borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 10, paddingVertical: 12, paddingHorizontal: 16, fontSize: 15, color: "#111111", height: 48 },
+  colourOption: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20, backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "#E5E7EB" },
+  colourOptionActive: { backgroundColor: "#111111", borderColor: "#111111" },
+  colourOptionText: { fontSize: 13, fontWeight: "600", color: "#374151" },
+  colourOptionTextActive: { color: colors.white },
+  helperTextSmall: { fontSize: 12, color: "#9CA3AF", marginTop: 8 },
   selectInputBox: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: "#F9FAFB", borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 10, paddingHorizontal: 16, height: 48 },
   comboInputBox: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: "#F9FAFB", borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 10, paddingHorizontal: 16, height: 48 },
   comboTextInput: { flex: 1, fontSize: 15, color: "#111111", height: "100%" },

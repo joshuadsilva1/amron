@@ -86,6 +86,34 @@ export default class TransactionService {
     return response.data;
   }
 
+  // Combines moulding + brass components into a Finished Good. If a
+  // component broke partway through, actual output is capped by whichever
+  // one ran out first — every other component's unused surplus (from the
+  // same planned batch size) is automatically restocked. See
+  // transaction_api.assemble_finished_good.
+  static async assembleFinishedGood(payload: {
+    department_id: string;
+    item_id: string;
+    planned_quantity: number;
+    breakages?: Record<string, number>;
+  }): Promise<{
+    status: string;
+    message: string;
+    planned_quantity: number;
+    actual_output: number;
+    components: {
+      component_id: string;
+      component_name: string | null;
+      pulled_qty: number;
+      broken_qty: number;
+      consumed_qty: number;
+      restocked_qty: number;
+    }[];
+  }> {
+    const response = await api.post("/transactions/assemble", payload);
+    return response.data;
+  }
+
   static async getChallanHistory(): Promise<ChallanHistoryEntry[]> {
     const response = await api.get<{ status: string; history: ChallanHistoryEntry[] }>("/transactions/challan/history");
     return response.data.history;

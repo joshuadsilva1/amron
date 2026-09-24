@@ -104,9 +104,14 @@ export default function DispatchScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Dispatch Outward</Text>
-        <Pressable onPress={() => router.push("/(protected)/dispatch/history")} style={styles.historyIcon}>
-           <SymbolView name="clock.arrow.circlepath" size={24} tintColor={colors.navy} />
-        </Pressable>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 16 }}>
+          <Pressable onPress={() => router.push("/(protected)/dispatch/assemble")} style={styles.historyIcon}>
+            <SymbolView name="square.stack.3d.up" size={22} tintColor={colors.navy} />
+          </Pressable>
+          <Pressable onPress={() => router.push("/(protected)/dispatch/history")} style={styles.historyIcon}>
+             <SymbolView name="clock.arrow.circlepath" size={24} tintColor={colors.navy} />
+          </Pressable>
+        </View>
       </View>
 
       {isScanning ? (

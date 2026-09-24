@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Platform, ActivityIndicator, Modal, FlatList } from "react-native";
+import SearchBar from "@/components/common/SearchBar";
+import { useSearch } from "@/utils/useSearch";
 import Alert from "@/utils/alert";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router"; // <-- Import this to read the URL
@@ -70,6 +72,7 @@ export default function DepartmentSupplierOrdersPage() {
   const [items, setItems] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
+  const search = useSearch(orders);
 
   // Unit Options
   const unitOptions = [{ id: "pcs", name: "pcs" }, { id: "kg", name: "kg" }, { id: "boxes", name: "boxes" }];
@@ -394,12 +397,20 @@ export default function DepartmentSupplierOrdersPage() {
         {/* RIGHT COLUMN */}
         <View style={styles.rightColumn}>
           <View style={styles.listCard}>
+            <SearchBar
+              value={search.query}
+              onChangeText={search.setQuery}
+              placeholder="Search orders by supplier, item, status..."
+              resultCount={search.filtered.length}
+              totalCount={orders.length}
+            />
+
             {loading ? (
               <ActivityIndicator size="large" color="#8B5CF6" />
             ) : orders.length === 0 ? (
               <Text style={styles.emptyText}>No {departmentName} orders yet.</Text>
             ) : (
-              orders.map((o: any) => (
+              search.filtered.map((o: any) => (
                 <View key={o.id} style={styles.orderRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.orderNumber}>

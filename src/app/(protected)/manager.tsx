@@ -10,6 +10,7 @@ import typography from "@/theme/typography";
 import api from "@/services/api";
 import SupplierOrderService from "@/services/supplierService";
 import TransactionService from "@/services/transactionService";
+import SmartSearch from "@/components/common/SmartSearch";
 
 const QUICK_ACTIONS = [
   {
@@ -102,6 +103,8 @@ export default function ManagerDashboard() {
           Your department — pick a task below to get started.
         </Text>
       </View>
+
+      <SmartSearch />
 
       <Text style={styles.sectionTitle}>QUICK ACTIONS</Text>
 

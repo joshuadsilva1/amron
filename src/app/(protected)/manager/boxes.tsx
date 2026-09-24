@@ -8,6 +8,8 @@ import spacing from "@/theme/spacing";
 import api from "@/services/api";
 import BoxService, { BoxMapping } from "@/services/boxService";
 import { useSortable } from "@/utils/useSortable";
+import SearchBar from "@/components/common/SearchBar";
+import { useSearch } from "@/utils/useSearch";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
 
 interface ItemOption { id: string; name: string; item_code: string; }
@@ -73,7 +75,8 @@ export default function BoxesPage() {
   const [deleteTarget, setDeleteTarget] = useState<BoxMapping | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const { sorted: sortedMappings, sortKey, sortDir, toggleSort } = useSortable<BoxMapping>(mappings);
+  const search = useSearch(mappings);
+  const { sorted: sortedMappings, sortKey, sortDir, toggleSort } = useSortable<BoxMapping>(search.filtered);
 
   useEffect(() => {
     fetchData();
@@ -173,6 +176,13 @@ export default function BoxesPage() {
         </View>
 
         {/* Table Card / Empty State */}
+        <SearchBar
+          value={search.query}
+          onChangeText={search.setQuery}
+          placeholder="Search box mappings..."
+          resultCount={search.filtered.length}
+          totalCount={mappings.length}
+        />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
           <View style={styles.tableCard}>
             <View style={styles.tableHeader}>

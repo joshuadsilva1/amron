@@ -8,6 +8,8 @@ import ClientService, { Client } from "@/services/clientService"; // Ensure path
 import colors from "@/theme/colors";
 import spacing from "@/theme/spacing";
 import { useSortable } from "@/utils/useSortable";
+import SearchBar from "@/components/common/SearchBar";
+import { useSearch } from "@/utils/useSearch";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
 
 export default function ClientsPage() {
@@ -15,7 +17,8 @@ export default function ClientsPage() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const { sorted: sortedClients, sortKey, sortDir, toggleSort } = useSortable<Client>(clients);
+  const search = useSearch(clients);
+  const { sorted: sortedClients, sortKey, sortDir, toggleSort } = useSortable<Client>(search.filtered);
 
   // Form State
   const [formName, setFormName] = useState("");
@@ -87,6 +90,13 @@ export default function ClientsPage() {
         </View>
 
         {/* Table Card */}
+        <SearchBar
+          value={search.query}
+          onChangeText={search.setQuery}
+          placeholder="Search clients..."
+          resultCount={search.filtered.length}
+          totalCount={clients.length}
+        />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
           <View style={styles.tableCard}>
             

@@ -35,6 +35,17 @@ export default class DepartmentPoService {
     return response.data;
   }
 
+  // Same, for several customer POs at once. One that can't be raised (no
+  // recipe, ...) doesn't block the rest — the message lists what was
+  // skipped and why.
+  static async generateFromPOs(poIds: string[]) {
+    const response = await api.post<{ status: string; message: string; department_po_ids: string[] }>(
+      "/department-pos/generate",
+      { po_ids: poIds }
+    );
+    return response.data;
+  }
+
   static async getDepartmentPOs(departmentId?: string, status?: string) {
     const params: Record<string, string> = {};
     if (departmentId) params.department_id = departmentId;

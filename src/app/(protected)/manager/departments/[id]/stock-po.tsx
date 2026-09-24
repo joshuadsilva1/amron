@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, Platform, ActivityIndicator } from "react-native";
+import SearchBar from "@/components/common/SearchBar";
+import { useSearch } from "@/utils/useSearch";
 import Alert from "@/utils/alert";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
@@ -26,7 +28,8 @@ export default function StockVsPOPage() {
   const [departmentName, setDepartmentName] = useState("Loading...");
   const [loading, setLoading] = useState(true);
   const [comparisons, setComparisons] = useState<Comparison[]>([]);
-  const { sorted: sortedComparisons, sortKey, sortDir, toggleSort } = useSortable<Comparison>(comparisons);
+  const search = useSearch(comparisons);
+  const { sorted: sortedComparisons, sortKey, sortDir, toggleSort } = useSortable<Comparison>(search.filtered);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -160,6 +163,14 @@ export default function StockVsPOPage() {
         </View>
 
         {/* Content Section */}
+        <SearchBar
+          value={search.query}
+          onChangeText={search.setQuery}
+          placeholder="Search materials by name or code..."
+          resultCount={search.filtered.length}
+          totalCount={comparisons.length}
+        />
+
         {loading ? (
           <ActivityIndicator size="large" color="#8B5CF6" style={{ marginTop: 60 }} />
         ) : comparisons.length === 0 ? (

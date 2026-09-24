@@ -1,25 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, ActivityIndicator, Platform } from "react-native";
+import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, ActivityIndicator, Platform, Modal, Switch } from "react-native";
 import Alert from "@/utils/alert";
 import { Feather } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
 
 import colors from "@/theme/colors";
 import spacing from "@/theme/spacing";
 import ReportService, { StockItem } from "@/services/reportService";
 import SupplierOrderService from "@/services/supplierService";
 import { exportToExcel, exportToPDF, printTable, ExportCell } from "@/utils/export";
+import WhatsAppService, { ReportSection } from "@/services/whatsappService";
 import { useSortable } from "@/utils/useSortable";
+import SearchBar from "@/components/common/SearchBar";
+import { useSearch } from "@/utils/useSearch";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
-
-const SECTIONS = [
-  "Whole Factory",
-  "Moulding",
-  "Brasspart",
-  "Lazer",
-  "Fitting",
-  "Box · Pouch · Label",
-  "Finished Goods"
-];
 
 export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
@@ -29,8 +23,20 @@ export default function ReportsPage() {
   const [urgentOrders, setUrgentOrders] = useState<any[]>([]);
   const [oneOffNumber, setOneOffNumber] = useState("");
 
-  const stockSort = useSortable<StockItem>(currentStock);
-  const urgentSort = useSortable<any>(urgentOrders);
+  // Daily WhatsApp report schedule — one card per report (whole factory + each department)
+  const [sections, setSections] = useState<ReportSection[]>([]);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [editing, setEditing] = useState<ReportSection | null>(null);
+  const [formNumber, setFormNumber] = useState("");
+  const [formTime, setFormTime] = useState("08:00");
+  const [formEnabled, setFormEnabled] = useState(true);
+  const [savingSchedule, setSavingSchedule] = useState(false);
+
+  const stockSearch = useSearch(currentStock);
+  const urgentSearch = useSearch(urgentOrders);
+  const activeSearch = activeTab === "stock" ? stockSearch : urgentSearch;
+  const stockSort = useSortable<StockItem>(stockSearch.filtered);
+  const urgentSort = useSortable<any>(urgentSearch.filtered);
   const activeSort = activeTab === "stock" ? stockSort : urgentSort;
 
   useEffect(() => {
@@ -42,6 +48,8 @@ export default function ReportsPage() {
       setLoading(true);
       const stockData = await ReportService.getLiveStock().catch(() => []);
       setCurrentStock(stockData);
+
+      setSections(await WhatsAppService.getReportSections().catch(() => []));
 
       const ordersData = await SupplierOrderService.getOrders().catch(() => []);
       const urgent = ordersData.filter((o: any) => o.is_urgent === 1);
@@ -104,21 +112,79 @@ export default function ReportsPage() {
     }
   };
 
-  const handleCopySection = (sectionName: string) => {
-    Alert.alert("Copied", `${sectionName} report summary prepared!`);
+  const keyOf = (section: ReportSection) => section.department_id ?? "factory";
+  const errText = (error: any, fallback: string) => error?.response?.data?.error || error?.message || fallback;
+
+  const handleCopySection = async (section: ReportSection) => {
+    try {
+      setBusyKey(`copy-${keyOf(section)}`);
+      const text = await WhatsAppService.previewReport(section.department_id);
+      await Clipboard.setStringAsync(text);
+      Alert.alert("Copied", `${section.name} report copied — paste it anywhere.`);
+    } catch (error: any) {
+      Alert.alert("Error", errText(error, "Could not build the report."));
+    } finally {
+      setBusyKey(null);
+    }
   };
 
-  const handleSendSection = (sectionName: string) => {
-    Alert.alert("Sent", `${sectionName} report dispatched successfully!`);
+  const handleSendSection = async (section: ReportSection) => {
+    if (!section.subscription) {
+      Alert.alert("No recipient yet", `Set a recipient for ${section.name} first (Schedule button).`);
+      return;
+    }
+    try {
+      setBusyKey(`send-${keyOf(section)}`);
+      await WhatsAppService.sendReportNow(section.department_id);
+      Alert.alert("Sent", `${section.name} report sent to ${section.subscription.recipient_number}.`);
+    } catch (error: any) {
+      Alert.alert("Not sent", errText(error, "Could not send the report."));
+    } finally {
+      setBusyKey(null);
+    }
   };
 
-  const handleSendFullReport = () => {
-    if (!oneOffNumber) {
+  const handleSendFullReport = async () => {
+    if (!oneOffNumber.trim()) {
       Alert.alert("Error", "Please enter a valid phone number.");
       return;
     }
-    Alert.alert("Success", `Full factory report sent to ${oneOffNumber}`);
-    setOneOffNumber("");
+    try {
+      setBusyKey("oneoff");
+      await WhatsAppService.sendReportNow(null, oneOffNumber.trim());
+      Alert.alert("Sent", `Full factory report sent to ${oneOffNumber.trim()}.`);
+      setOneOffNumber("");
+    } catch (error: any) {
+      Alert.alert("Not sent", errText(error, "Could not send the report."));
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
+  const openSchedule = (section: ReportSection) => {
+    setEditing(section);
+    setFormNumber(section.subscription?.recipient_number || "");
+    setFormTime(section.subscription?.send_time || "08:00");
+    setFormEnabled(section.subscription ? section.subscription.is_enabled : true);
+  };
+
+  const handleSaveSchedule = async () => {
+    if (!editing) return;
+    try {
+      setSavingSchedule(true);
+      await WhatsAppService.saveReportSubscription({
+        department_id: editing.department_id,
+        recipient_number: formNumber.trim(),
+        send_time: formTime.trim(),
+        is_enabled: formEnabled,
+      });
+      setEditing(null);
+      setSections(await WhatsAppService.getReportSections().catch(() => sections));
+    } catch (error: any) {
+      Alert.alert("Error", errText(error, "Could not save the schedule."));
+    } finally {
+      setSavingSchedule(false);
+    }
   };
 
   return (
@@ -152,25 +218,51 @@ export default function ReportsPage() {
 
         {/* Section Cards Grid */}
         <View style={styles.gridContainer}>
-          {SECTIONS.map((section, idx) => (
-            <View key={idx} style={styles.sectionCard}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>{section}</Text>
-                <Feather name="message-circle" size={16} color="#8B5CF6" />
+          {sections.map((section) => {
+            const sub = section.subscription;
+            const key = keyOf(section);
+            return (
+              <View key={key} style={styles.sectionCard}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>{section.name}</Text>
+                  <Feather name="message-circle" size={16} color={sub?.is_enabled ? "#25D366" : "#9CA3AF"} />
+                </View>
+                {sub ? (
+                  <>
+                    <Text style={[styles.sectionRecipient, { marginBottom: 4, color: "#374151" }]}>
+                      {sub.is_enabled ? `Daily at ${sub.send_time}` : "Paused"} → {sub.recipient_number}
+                    </Text>
+                    <Text style={[styles.sectionRecipient, sub.last_status === "failed" && { color: "#B91C1C" }]}>
+                      {sub.last_status === "failed"
+                        ? `Last attempt failed: ${sub.last_error}`
+                        : sub.last_sent_on ? `Last sent ${sub.last_sent_on}` : "Not sent yet"}
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={styles.sectionRecipient}>No recipient allotted yet</Text>
+                )}
+
+                <View style={styles.sectionCardActions}>
+                  <Pressable style={styles.sendActionBtn} onPress={() => handleSendSection(section)} disabled={busyKey === `send-${key}`}>
+                    {busyKey === `send-${key}` ? (
+                      <ActivityIndicator size="small" color={colors.white} />
+                    ) : (
+                      <>
+                        <Feather name="send" size={14} color={colors.white} style={{ marginRight: 6 }} />
+                        <Text style={styles.sendActionText}>Send now</Text>
+                      </>
+                    )}
+                  </Pressable>
+                  <Pressable style={styles.copyActionBtn} onPress={() => openSchedule(section)}>
+                    <Feather name="clock" size={14} color="#4B5563" />
+                  </Pressable>
+                  <Pressable style={styles.copyActionBtn} onPress={() => handleCopySection(section)} disabled={busyKey === `copy-${key}`}>
+                    <Feather name="copy" size={14} color="#4B5563" />
+                  </Pressable>
+                </View>
               </View>
-              <Text style={styles.sectionRecipient}>No recipient allotted yet</Text>
-              
-              <View style={styles.sectionCardActions}>
-                <Pressable style={styles.sendActionBtn} onPress={() => handleSendSection(section)}>
-                  <Feather name="send" size={14} color={colors.white} style={{ marginRight: 6 }} />
-                  <Text style={styles.sendActionText}>Send</Text>
-                </Pressable>
-                <Pressable style={styles.copyActionBtn} onPress={() => handleCopySection(section)}>
-                  <Feather name="copy" size={14} color="#4B5563" />
-                </Pressable>
-              </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
 
         {/* Send to One-off Number Card */}
@@ -189,9 +281,15 @@ export default function ReportsPage() {
               onChangeText={setOneOffNumber}
               keyboardType="phone-pad"
             />
-            <Pressable style={styles.sendFullBtn} onPress={handleSendFullReport}>
-              <Feather name="send" size={14} color={colors.white} style={{ marginRight: 6 }} />
-              <Text style={styles.sendFullText}>Send full report</Text>
+            <Pressable style={styles.sendFullBtn} onPress={handleSendFullReport} disabled={busyKey === "oneoff"}>
+              {busyKey === "oneoff" ? (
+                <ActivityIndicator size="small" color={colors.white} />
+              ) : (
+                <>
+                  <Feather name="send" size={14} color={colors.white} style={{ marginRight: 6 }} />
+                  <Text style={styles.sendFullText}>Send full report</Text>
+                </>
+              )}
             </Pressable>
           </View>
         </View>
@@ -211,6 +309,14 @@ export default function ReportsPage() {
             <Text style={[styles.tabText, activeTab === "urgent" && styles.activeTabText]}>Urgent orders</Text>
           </Pressable>
         </View>
+
+        <SearchBar
+          value={activeSearch.query}
+          onChangeText={activeSearch.setQuery}
+          placeholder={activeTab === "stock" ? "Search stock by code, name, category..." : "Search urgent orders..."}
+          resultCount={activeSearch.filtered.length}
+          totalCount={activeTab === "stock" ? currentStock.length : urgentOrders.length}
+        />
 
         {/* Data Table */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
@@ -289,6 +395,49 @@ export default function ReportsPage() {
         </ScrollView>
 
       </ScrollView>
+
+      {/* Schedule editor */}
+      <Modal visible={!!editing} transparent animationType="fade" onRequestClose={() => setEditing(null)}>
+        <Pressable style={styles.scheduleOverlay} onPress={() => setEditing(null)}>
+          <Pressable style={styles.scheduleCard} onPress={() => {}}>
+            <Text style={styles.scheduleTitle}>{editing?.name} — daily report</Text>
+
+            <Text style={styles.inputLabel}>WhatsApp number (with country code)</Text>
+            <TextInput
+              style={styles.oneOffInput}
+              value={formNumber}
+              onChangeText={setFormNumber}
+              placeholder="e.g. 919876543210"
+              placeholderTextColor="#9CA3AF"
+              keyboardType="phone-pad"
+            />
+
+            <Text style={[styles.inputLabel, { marginTop: 16 }]}>Send every day at (24-hour, factory time)</Text>
+            <TextInput
+              style={styles.oneOffInput}
+              value={formTime}
+              onChangeText={setFormTime}
+              placeholder="08:00"
+              placeholderTextColor="#9CA3AF"
+              maxLength={5}
+            />
+
+            <View style={styles.scheduleSwitchRow}>
+              <Text style={styles.inputLabel}>Send daily</Text>
+              <Switch value={formEnabled} onValueChange={setFormEnabled} />
+            </View>
+
+            <View style={{ flexDirection: "row", gap: 12, marginTop: 8 }}>
+              <Pressable style={[styles.copyActionBtn, { flex: 1, height: 44 }]} onPress={() => setEditing(null)}>
+                <Text style={styles.exportText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={[styles.sendActionBtn, { flex: 1, height: 44 }]} onPress={handleSaveSchedule} disabled={savingSchedule}>
+                {savingSchedule ? <ActivityIndicator size="small" color={colors.white} /> : <Text style={styles.sendActionText}>Save</Text>}
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -318,6 +467,10 @@ const styles = StyleSheet.create({
   copyActionBtn: { width: 44, alignItems: "center", justifyContent: "center", backgroundColor: "#F3F4F6", borderRadius: 10, borderWidth: 1, borderColor: "#E5E7EB" },
 
   // One-off Card
+  scheduleOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 20 },
+  scheduleCard: { width: "100%", maxWidth: 420, backgroundColor: colors.white, borderRadius: 16, padding: 24 },
+  scheduleTitle: { fontSize: 18, fontWeight: "700", color: "#111111", marginBottom: 20 },
+  scheduleSwitchRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginVertical: 16 },
   oneOffCard: { backgroundColor: colors.white, borderRadius: 16, padding: 24, borderWidth: 1, borderColor: "#E5E7EB", marginBottom: spacing.xl, shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 2 },
   oneOffInstruction: { fontSize: 14, color: "#4B5563", marginBottom: 16 },
   inputLabel: { fontSize: 13, fontWeight: "600", color: "#111111", marginBottom: 8 },

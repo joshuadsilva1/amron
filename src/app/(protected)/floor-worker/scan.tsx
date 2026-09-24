@@ -61,6 +61,7 @@ export default function ScanInOutScreen() {
   const [cameraActive, setCameraActive] = useState<ScanTarget>(null);
   const [processing, setProcessing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [checkingQc, setCheckingQc] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem(SCANNER_MODE_KEY).then((stored) => {
@@ -107,7 +108,7 @@ export default function ScanInOutScreen() {
     if (Platform.OS === "web") {
       const code = window.prompt(`Simulate Camera: Enter ${target === "ITEM" ? "Item" : "Rack"} Code`);
       if (code) {
-        if (target === "ITEM") setItemQR(code);
+        if (target === "ITEM") resolveItemScan(code);
         if (target === "RACK") setRackQR(code);
       }
       return;
@@ -119,11 +120,47 @@ export default function ScanInOutScreen() {
     setCameraActive(target);
   };
 
+  // Hard validation rule: a batch/bin that hasn't passed QC must never be
+  // scanned IN. Bins are looked up by QR code in the registry — a code
+  // that isn't a registered bin (e.g. a plain item-master barcode with no
+  // batch/QC tracking) is unaffected and scans in as before. The backend
+  // enforces the same rule on submit (see /transactions/manual), so a
+  // network hiccup here can't be used to bypass the gate.
+  const resolveItemScan = async (code: string) => {
+    if (action !== "IN") {
+      setItemQR(code);
+      return;
+    }
+    setCheckingQc(true);
+    try {
+      const res = await api.get(`/transactions/bin/${encodeURIComponent(code)}`);
+      const qcStatus = res.data?.data?.qc_status;
+      if (qcStatus && qcStatus !== "Passed") {
+        Alert.alert(
+          "QC Not Approved",
+          `This batch's QC status is '${qcStatus}'. It cannot be scanned in until QC approves it.`
+        );
+        return;
+      }
+      setItemQR(code);
+    } catch (error: any) {
+      if (error?.response?.status === 404) {
+        // Not a QC-tracked bin — scan in as a plain item.
+        setItemQR(code);
+      } else {
+        console.warn("QC lookup failed, allowing scan (server will re-check on submit)", error);
+        setItemQR(code);
+      }
+    } finally {
+      setCheckingQc(false);
+    }
+  };
+
   const handleBarcodeScanned = ({ data }: { data: string }) => {
     if (processing) return;
     setProcessing(true);
 
-    if (cameraActive === "ITEM") setItemQR(data);
+    if (cameraActive === "ITEM") resolveItemScan(data);
     if (cameraActive === "RACK") setRackQR(data);
 
     setCameraActive(null);
@@ -154,6 +191,7 @@ export default function ScanInOutScreen() {
         department_id: department.id,
         reason: `Rack: ${rackQR}`,
         reference_number: chalan || undefined,
+        qr_code_string: itemQR || undefined,
       };
       const res = await api.post("/transactions/manual", payload);
       Alert.alert("Success", res.data?.message || `Recorded ${action} for ${quantity} items at rack ${rackQR}.`);
@@ -287,9 +325,15 @@ export default function ScanInOutScreen() {
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>1. Scan item QR</Text>
-            <Pressable style={styles.scanBtn} onPress={() => openCamera("ITEM")}>
-              <SymbolView name="camera" size={20} tintColor={colors.navy} style={{ marginRight: 8 }} />
-              <Text style={styles.scanBtnText}>{itemQR ? `Item: ${itemQR}` : "Scan item"}</Text>
+            <Pressable style={styles.scanBtn} onPress={() => openCamera("ITEM")} disabled={checkingQc}>
+              {checkingQc ? (
+                <ActivityIndicator size="small" color={colors.navy} style={{ marginRight: 8 }} />
+              ) : (
+                <SymbolView name="camera" size={20} tintColor={colors.navy} style={{ marginRight: 8 }} />
+              )}
+              <Text style={styles.scanBtnText}>
+                {checkingQc ? "Checking QC status…" : itemQR ? `Item: ${itemQR}` : "Scan item"}
+              </Text>
             </Pressable>
           </View>
 

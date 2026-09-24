@@ -38,6 +38,7 @@ export default function PendingApprovalScreen() {
           name: u.full_name,
           role: u.role,
           department_id: u.department_id,
+          modules: u.modules,
         };
         if (jwt) {
           await saveSession(jwt, mappedUser);

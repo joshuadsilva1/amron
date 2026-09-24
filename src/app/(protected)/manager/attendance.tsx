@@ -8,6 +8,8 @@ import spacing from "@/theme/spacing";
 import AttendanceService from "@/services/attendanceService";
 import { exportToExcel, exportToPDF } from "@/utils/export";
 import { useSortable } from "@/utils/useSortable";
+import SearchBar from "@/components/common/SearchBar";
+import { useSearch } from "@/utils/useSearch";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
 
 // Helper to format Date for the UI (DD/MM/YYYY) and Backend (YYYY-MM-DD)
@@ -75,7 +77,8 @@ export default function AttendancePage() {
   const [departments, setDepartments] = useState<any[]>([]);
   const [attendanceData, setAttendanceData] = useState<any[]>([]);
   const [summary, setSummary] = useState({ present_count: 0, total_staff: 0 });
-  const { sorted: sortedAttendance, sortKey, sortDir, toggleSort } = useSortable<any>(attendanceData);
+  const search = useSearch(attendanceData);
+  const { sorted: sortedAttendance, sortKey, sortDir, toggleSort } = useSortable<any>(search.filtered);
 
   // Modal Form State
   const [formName, setFormName] = useState("");
@@ -220,6 +223,13 @@ export default function AttendancePage() {
         </View>
 
         {/* Attendance Table */}
+        <SearchBar
+          value={search.query}
+          onChangeText={search.setQuery}
+          placeholder="Search by name, department, status..."
+          resultCount={search.filtered.length}
+          totalCount={attendanceData.length}
+        />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
           <View style={styles.tableCard}>
             <View style={styles.tableHeader}>

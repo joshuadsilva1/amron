@@ -9,6 +9,8 @@ import ReportService, { StockItem } from "@/services/reportService";
 import TransactionService from "@/services/transactionService";
 import { exportToExcel, exportToPDF, ExportCell } from "@/utils/export";
 import { useSortable } from "@/utils/useSortable";
+import SearchBar from "@/components/common/SearchBar";
+import { useSearch } from "@/utils/useSearch";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
 
 interface DepartmentOption { id: string; name: string; level: number; }
@@ -35,7 +37,8 @@ export default function StocksReportPage() {
     price: false,
   });
 
-  const { sorted: sortedStockItems, sortKey, sortDir, toggleSort } = useSortable<StockItem>(stockItems);
+  const search = useSearch(stockItems);
+  const { sorted: sortedStockItems, sortKey, sortDir, toggleSort } = useSortable<StockItem>(search.filtered);
 
   useEffect(() => {
     fetchStock();
@@ -244,7 +247,14 @@ export default function StocksReportPage() {
           </View>
 
           {/* Right Tables Column */}
-          <View style={styles.tablesColumn}>
+          <SearchBar
+          value={search.query}
+          onChangeText={search.setQuery}
+          placeholder="Search items by code or name..."
+          resultCount={search.filtered.length}
+          totalCount={stockItems.length}
+        />
+        <View style={styles.tablesColumn}>
             {loading ? (
               <ActivityIndicator size="large" color="#8B5CF6" style={{ marginVertical: 60 }} />
             ) : departments.length === 0 ? (

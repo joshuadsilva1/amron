@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Platform, ActivityIndicator, Modal, FlatList } from "react-native";
+import SearchBar from "@/components/common/SearchBar";
+import { useSearch } from "@/utils/useSearch";
 import Alert from "@/utils/alert";
 import { Feather } from "@expo/vector-icons";
 
@@ -65,7 +67,8 @@ export default function SupplierOrdersPage() {
   const [departments, setDepartments] = useState([]);
   const [items, setItems] = useState([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const search = useSearch(orders);
 
   // Unit Options (UI Only - Your DB doesn't save unit for supplier items currently)
   const unitOptions = [{ id: "pcs", name: "pcs" }, { id: "kg", name: "kg" }, { id: "boxes", name: "boxes" }];
@@ -365,12 +368,19 @@ export default function SupplierOrdersPage() {
         {/* RIGHT COLUMN */}
         <View style={styles.rightColumn}>
           <View style={styles.listCard}>
+            <SearchBar
+              value={search.query}
+              onChangeText={search.setQuery}
+              placeholder="Search orders by supplier, item, status..."
+              resultCount={search.filtered.length}
+              totalCount={orders.length}
+            />
             {loading ? (
               <ActivityIndicator size="large" color={colors.primary} />
             ) : orders.length === 0 ? (
               <Text style={styles.emptyText}>No orders yet.</Text>
             ) : (
-              orders.map((o: any) => (
+              search.filtered.map((o: any) => (
                 <View key={o.id} style={styles.orderRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.orderNumber}>

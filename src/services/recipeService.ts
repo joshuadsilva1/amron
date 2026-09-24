@@ -3,6 +3,10 @@ import api from "./api";
 export interface IngredientPayload {
   input_item_id: string;
   quantity_required: number;
+  lazer_needed?: boolean;
+  // Only Black/Grey moulded parts may be routed to Colour — the backend
+  // rejects this outright for a component whose powder_colour is White.
+  colour_needed?: boolean;
 }
 
 export interface CreateRecipePayload {
@@ -16,8 +20,17 @@ export interface RecipeComponent {
   component_id: string;
   component_code: string | null;
   component_name: string | null;
+  // Which department this component is drawn from (its own department,
+  // set under Items) — a recipe's components can span several departments
+  // at once, so this is what tells them apart on screen.
+  component_department_id: string | null;
+  component_department_name: string | null;
+  // 'White' | 'Grey' | 'Black' | null — null means this isn't a
+  // colour-tracked moulded part (set under Items).
+  component_powder_colour: string | null;
   quantity_required: number;
   lazer_needed: boolean;
+  colour_needed: boolean;
   has_sub_recipe: boolean;
 }
 
@@ -27,6 +40,9 @@ export interface RecipeSummary {
   finished_good_name: string;
   version: number;
   component_count: number;
+  // Distinct departments across this recipe's components, for an
+  // at-a-glance view before expanding the component list.
+  departments: string[];
   components: RecipeComponent[];
 }
 

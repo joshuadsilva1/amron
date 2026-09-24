@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Modal } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { router, useLocalSearchParams, useFocusEffect, Stack } from "expo-router";
 
 import colors from "@/theme/colors";
 import spacing from "@/theme/spacing";
 import useAuthStore from "@/store/authStore";
-import ChatService, { ChatMessage } from "@/services/chatService";
+import ChatService, { ChatMessage, ChatMember } from "@/services/chatService";
+import { formatRole, roleAndDepartment } from "@/utils/chatFormat";
 
 const POLL_INTERVAL_MS = 4000;
 
@@ -22,6 +23,8 @@ export default function ChatConversationScreen() {
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  const [members, setMembers] = useState<ChatMember[]>([]);
+  const [infoVisible, setInfoVisible] = useState(false);
 
   const scrollRef = useRef<ScrollView>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
@@ -37,6 +40,7 @@ export default function ChatConversationScreen() {
       setLoading(true);
       const data = await ChatService.getMessages(id);
       setMessages(data);
+      ChatService.getMembers(id).then(setMembers).catch(() => {}); // header/role info only — never block the chat on it
       await ChatService.markRead(id);
       scrollToBottom(false);
     } catch (error) {
@@ -70,6 +74,13 @@ export default function ChatConversationScreen() {
     }, [fetchInitial, pollNewMessages])
   );
 
+  const memberById = new Map(members.map((m) => [m.id, m]));
+  const otherMember = members.find((m) => !m.is_me);
+  const subtitle =
+    type === "GROUP"
+      ? members.length ? `${members.length} members — tap to see who` : ""
+      : roleAndDepartment(otherMember);
+
   const handleSend = async () => {
     const body = draft.trim();
     if (!body || !id) return;
@@ -98,7 +109,15 @@ export default function ChatConversationScreen() {
         <View style={styles.headerIconWrapper}>
           <Feather name={type === "GROUP" ? "users" : "user"} size={18} color="#8B5CF6" />
         </View>
-        <Text style={styles.headerTitle} numberOfLines={1}>{name || "Chat"}</Text>
+        <Pressable style={{ flex: 1 }} onPress={() => members.length > 0 && setInfoVisible(true)}>
+          <Text style={styles.headerTitle} numberOfLines={1}>{name || "Chat"}</Text>
+          {!!subtitle && <Text style={styles.headerSubtitle} numberOfLines={1}>{subtitle}</Text>}
+        </Pressable>
+        {members.length > 0 && (
+          <Pressable onPress={() => setInfoVisible(true)} hitSlop={12}>
+            <Feather name="info" size={20} color="#6B7280" />
+          </Pressable>
+        )}
       </View>
 
       {loading ? (
@@ -116,7 +135,10 @@ export default function ChatConversationScreen() {
                 <View key={msg.id} style={[styles.messageRow, isMine && styles.messageRowMine]}>
                   <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleTheirs]}>
                     {!isMine && type === "GROUP" && (
-                      <Text style={styles.senderName}>{msg.sender_name}</Text>
+                      <Text style={styles.senderName}>
+                        {msg.sender_name}
+                        {memberById.get(msg.sender_id)?.role_name ? ` · ${formatRole(memberById.get(msg.sender_id)?.role_name)}` : ""}
+                      </Text>
                     )}
                     <Text style={[styles.bubbleText, isMine && styles.bubbleTextMine]}>{msg.body}</Text>
                     <Text style={[styles.bubbleTime, isMine && styles.bubbleTimeMine]}>{formatTime(msg.created_at)}</Text>
@@ -145,6 +167,31 @@ export default function ChatConversationScreen() {
           <Feather name="send" size={18} color={colors.white} />
         </Pressable>
       </View>
+
+      <Modal visible={infoVisible} transparent animationType="fade" onRequestClose={() => setInfoVisible(false)}>
+        <Pressable style={styles.infoOverlay} onPress={() => setInfoVisible(false)}>
+          <Pressable style={styles.infoCard} onPress={() => {}}>
+            <Text style={styles.infoTitle}>{type === "GROUP" ? name || "Group" : "Conversation"}</Text>
+            <Text style={styles.infoSub}>{members.length} {members.length === 1 ? "person" : "people"}</Text>
+            <ScrollView style={{ maxHeight: 360 }}>
+              {members.map((m) => (
+                <View key={m.id} style={styles.infoRow}>
+                  <View style={styles.infoAvatar}>
+                    <Text style={styles.infoAvatarText}>{m.name.charAt(0).toUpperCase()}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.infoName}>{m.name}{m.is_me ? " (you)" : ""}</Text>
+                    {!!roleAndDepartment(m) && <Text style={styles.infoMeta}>{roleAndDepartment(m)}</Text>}
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+            <Pressable style={styles.infoClose} onPress={() => setInfoVisible(false)}>
+              <Text style={styles.infoCloseText}>Close</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -155,7 +202,20 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", padding: spacing.lg, backgroundColor: colors.white, borderBottomWidth: 1, borderColor: "#E5E7EB" },
   backBtn: { marginRight: 12 },
   headerIconWrapper: { width: 34, height: 34, borderRadius: 10, backgroundColor: "#EDE9FE", alignItems: "center", justifyContent: "center", marginRight: 10 },
-  headerTitle: { fontSize: 17, fontWeight: "700", color: "#111111", flex: 1 },
+  headerTitle: { fontSize: 17, fontWeight: "700", color: "#111111" },
+  headerSubtitle: { fontSize: 12, color: "#8B5CF6", fontWeight: "600", marginTop: 1 },
+
+  infoOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 20 },
+  infoCard: { width: "100%", maxWidth: 400, backgroundColor: colors.white, borderRadius: 16, padding: 20 },
+  infoTitle: { fontSize: 18, fontWeight: "800", color: "#111111" },
+  infoSub: { fontSize: 13, color: "#6B7280", marginBottom: 12 },
+  infoRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
+  infoAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#EDE9FE", alignItems: "center", justifyContent: "center", marginRight: 12 },
+  infoAvatarText: { color: "#8B5CF6", fontWeight: "700", fontSize: 14 },
+  infoName: { fontSize: 15, fontWeight: "600", color: "#111111" },
+  infoMeta: { fontSize: 12, color: "#8B5CF6", marginTop: 1 },
+  infoClose: { marginTop: 14, backgroundColor: "#F3F4F6", borderRadius: 10, paddingVertical: 12, alignItems: "center" },
+  infoCloseText: { fontSize: 14, fontWeight: "600", color: "#374151" },
 
   messageList: { flex: 1 },
   messageListContent: { padding: spacing.lg, paddingBottom: spacing.xl },

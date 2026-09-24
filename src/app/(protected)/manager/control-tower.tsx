@@ -9,6 +9,8 @@ import ControlTowerService, { ControlTowerSummary, ControlTowerOrderRow } from "
 import OrderService from "@/services/orderService";
 import DepartmentPoService from "@/services/departmentPoService";
 import { useSortable } from "@/utils/useSortable";
+import SearchBar from "@/components/common/SearchBar";
+import { useSearch } from "@/utils/useSearch";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
 
 const RISK_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
@@ -38,8 +40,11 @@ export default function ControlTowerScreen() {
   const [statusPickerFor, setStatusPickerFor] = useState<ControlTowerOrderRow | null>(null);
   const [updatingPoId, setUpdatingPoId] = useState<string | null>(null);
   const [sendingPoId, setSendingPoId] = useState<string | null>(null);
+  const [selectedPoIds, setSelectedPoIds] = useState<Set<string>>(new Set());
+  const [sendingBulk, setSendingBulk] = useState(false);
 
-  const { sorted: sortedOrders, sortKey, sortDir, toggleSort } = useSortable<ControlTowerOrderRow>(orders);
+  const search = useSearch(orders);
+  const { sorted: sortedOrders, sortKey, sortDir, toggleSort } = useSortable<ControlTowerOrderRow>(search.filtered);
 
   const fetchData = useCallback(async () => {
     try {
@@ -94,6 +99,36 @@ export default function ControlTowerScreen() {
       Alert.alert("Error", error.response?.data?.error || "Failed to send to departments.");
     } finally {
       setSendingPoId(null);
+    }
+  };
+
+  const togglePo = (poId: string) => {
+    setSelectedPoIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(poId)) next.delete(poId);
+      else next.add(poId);
+      return next;
+    });
+  };
+
+  // Select-all acts on the rows currently shown (respects the search box).
+  const allSelected = search.filtered.length > 0 && search.filtered.every((o) => selectedPoIds.has(o.po_id));
+  const toggleAll = () => setSelectedPoIds(allSelected ? new Set() : new Set(search.filtered.map((o) => o.po_id)));
+
+  // Same as handleSendToDepartments, for every ticked order in one go.
+  const handleSendSelected = async () => {
+    const ids = orders.filter((o) => selectedPoIds.has(o.po_id)).map((o) => o.po_id);
+    if (ids.length === 0) return;
+    try {
+      setSendingBulk(true);
+      const result = await DepartmentPoService.generateFromPOs(ids);
+      Alert.alert("Sent", result.message || "Internal POs raised.");
+      setSelectedPoIds(new Set());
+      await fetchData();
+    } catch (error: any) {
+      Alert.alert("Error", error.response?.data?.error || "Failed to send to departments.");
+    } finally {
+      setSendingBulk(false);
     }
   };
 
@@ -162,9 +197,39 @@ export default function ControlTowerScreen() {
             )}
           </View>
 
+          {selectedPoIds.size > 0 && (
+            <View style={styles.bulkBar}>
+              <Text style={styles.bulkBarText}>{selectedPoIds.size} order{selectedPoIds.size === 1 ? "" : "s"} selected</Text>
+              <Pressable onPress={() => setSelectedPoIds(new Set())} disabled={sendingBulk}>
+                <Text style={styles.bulkClearText}>Clear</Text>
+              </Pressable>
+              <Pressable style={styles.bulkSendBtn} onPress={handleSendSelected} disabled={sendingBulk}>
+                {sendingBulk ? (
+                  <ActivityIndicator size="small" color={colors.white} />
+                ) : (
+                  <>
+                    <Feather name="send" size={14} color={colors.white} style={{ marginRight: 6 }} />
+                    <Text style={styles.bulkSendBtnText}>Send selected to departments</Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+          )}
+
+          <SearchBar
+            value={search.query}
+            onChangeText={search.setQuery}
+            placeholder="Search orders by customer, product, stage..."
+            resultCount={search.filtered.length}
+            totalCount={orders.length}
+          />
+
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
             <View style={styles.tableCard}>
               <View style={styles.tableHeader}>
+                <Pressable style={styles.checkCell} onPress={toggleAll} disabled={orders.length === 0}>
+                  <Feather name={allSelected ? "check-square" : "square"} size={18} color={allSelected ? "#8B5CF6" : "#9CA3AF"} />
+                </Pressable>
                 <SortableHeaderCell label="CUSTOMER" active={sortKey === "customer"} direction={sortDir} onPress={() => toggleSort("customer")} textStyle={styles.columnHeader} containerStyle={{ width: 150 }} />
                 <SortableHeaderCell label="PRODUCT" active={sortKey === "product"} direction={sortDir} onPress={() => toggleSort("product")} textStyle={styles.columnHeader} containerStyle={{ width: 200 }} />
                 <SortableHeaderCell label="QTY" active={sortKey === "quantity"} direction={sortDir} onPress={() => toggleSort("quantity")} textStyle={styles.columnHeader} containerStyle={{ width: 90 }} />
@@ -183,6 +248,13 @@ export default function ControlTowerScreen() {
                   const risk = RISK_COLORS[row.risk] || RISK_COLORS.GREEN;
                   return (
                     <View key={row.po_id} style={styles.tableRow}>
+                      <Pressable style={styles.checkCell} onPress={() => togglePo(row.po_id)}>
+                        <Feather
+                          name={selectedPoIds.has(row.po_id) ? "check-square" : "square"}
+                          size={18}
+                          color={selectedPoIds.has(row.po_id) ? "#8B5CF6" : "#9CA3AF"}
+                        />
+                      </Pressable>
                       <View style={{ width: 150 }}>
                         <Text style={styles.cellTextBold} numberOfLines={1}>{row.customer}</Text>
                         {row.is_urgent && <Text style={styles.urgentTag}>URGENT</Text>}
@@ -306,6 +378,12 @@ const styles = StyleSheet.create({
   riskDot: { width: 6, height: 6, borderRadius: 3, marginRight: 6 },
   riskText: { fontSize: 12, fontWeight: "700" },
 
+  checkCell: { width: 36, alignItems: "flex-start", justifyContent: "center" },
+  bulkBar: { flexDirection: "row", alignItems: "center", gap: 16, backgroundColor: "#F3E8FF", borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14, marginBottom: 12 },
+  bulkBarText: { flex: 1, fontSize: 14, fontWeight: "700", color: "#5B21B6" },
+  bulkClearText: { fontSize: 13, fontWeight: "600", color: "#6B7280" },
+  bulkSendBtn: { flexDirection: "row", alignItems: "center", backgroundColor: "#8B5CF6", borderRadius: 8, paddingVertical: 8, paddingHorizontal: 14 },
+  bulkSendBtnText: { fontSize: 13, fontWeight: "700", color: colors.white },
   sendDeptBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#F5F3FF", borderWidth: 1, borderColor: "#DDD6FE", borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10, alignSelf: "flex-start" },
   sendDeptBtnText: { fontSize: 12, fontWeight: "600", color: "#8B5CF6" },
 

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, Platform, ActivityIndicator, TextInput, Modal, FlatList } from "react-native";
+import SearchBar from "@/components/common/SearchBar";
+import { useSearch } from "@/utils/useSearch";
 import Alert from "@/utils/alert";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
@@ -69,6 +71,7 @@ export default function WorkAllotmentPage() {
 
   const [loading, setLoading] = useState(true);
   const [plans, setPlans] = useState<ProductionPlan[]>([]);
+  const search = useSearch(plans);
   const [items, setItems] = useState<any[]>([]);
 
   const [showForm, setShowForm] = useState(false);
@@ -238,6 +241,14 @@ export default function WorkAllotmentPage() {
           </View>
         )}
 
+        <SearchBar
+          value={search.query}
+          onChangeText={search.setQuery}
+          placeholder="Search allotments by product or status..."
+          resultCount={search.filtered.length}
+          totalCount={plans.length}
+        />
+
         {loading ? (
           <ActivityIndicator size="large" color="#8B5CF6" style={{ marginTop: 60 }} />
         ) : plans.length === 0 ? (
@@ -246,7 +257,7 @@ export default function WorkAllotmentPage() {
           </View>
         ) : (
           <View style={styles.card}>
-            {plans.map((plan) => {
+            {search.filtered.map((plan) => {
               const statusStyle = STATUS_COLORS[plan.status] || STATUS_COLORS.Pending;
               return (
                 <View key={plan.plan_id} style={styles.planRow}>

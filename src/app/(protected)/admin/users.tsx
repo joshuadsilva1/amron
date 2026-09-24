@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform } from "react-native";
+import SearchBar from "@/components/common/SearchBar";
+import { useSearch } from "@/utils/useSearch";
 import Alert from "@/utils/alert";
 import { Feather } from "@expo/vector-icons";
 import api from "@/services/api";
@@ -9,6 +11,7 @@ interface Role { id: number; name: string; }
 
 export default function UserManagementScreen() {
   const [users, setUsers] = useState<User[]>([]);
+  const search = useSearch(users);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -100,8 +103,16 @@ export default function UserManagementScreen() {
         </Pressable>
       </View>
 
+      <SearchBar
+        value={search.query}
+        onChangeText={search.setQuery}
+        placeholder="Search users..."
+        resultCount={search.filtered.length}
+        totalCount={users.length}
+        style={{ marginTop: 4 }}
+      />
       <FlatList
-        data={users}
+        data={search.filtered}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Modal } from "react-native";
+import SearchBar from "@/components/common/SearchBar";
+import { useSearch } from "@/utils/useSearch";
 import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 
@@ -10,6 +12,7 @@ import RecipeService, { RecipeSummary, RecipeVersion } from "@/services/recipeSe
 export default function RecipesListPage() {
   const [loading, setLoading] = useState(true);
   const [recipes, setRecipes] = useState<RecipeSummary[]>([]);
+  const search = useSearch(recipes);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const [historyFor, setHistoryFor] = useState<RecipeSummary | null>(null);
@@ -64,6 +67,13 @@ export default function RecipesListPage() {
           </Pressable>
         </View>
 
+        <SearchBar
+          value={search.query}
+          onChangeText={search.setQuery}
+          placeholder="Search recipes by product or component..."
+          resultCount={search.filtered.length}
+          totalCount={recipes.length}
+        />
         {loading ? (
           <ActivityIndicator size="large" color="#8B5CF6" style={{ marginTop: 60 }} />
         ) : recipes.length === 0 ? (
@@ -71,7 +81,7 @@ export default function RecipesListPage() {
             <Text style={styles.emptyText}>No recipes defined yet. Tap "New recipe" to build one.</Text>
           </View>
         ) : (
-          recipes.map((recipe) => {
+          search.filtered.map((recipe) => {
             const isExpanded = expandedId === recipe.finished_good_id;
             return (
               <View key={recipe.finished_good_id} style={styles.card}>
@@ -84,6 +94,11 @@ export default function RecipesListPage() {
                     <Text style={styles.fgCode}>
                       {recipe.finished_good_code || "No code"} · v{recipe.version} · {recipe.component_count} component{recipe.component_count === 1 ? "" : "s"}
                     </Text>
+                    {recipe.departments.length > 0 && (
+                      <Text style={styles.fgDepartments}>
+                        Draws from: {recipe.departments.join(" · ")}
+                      </Text>
+                    )}
                   </View>
 
                   <Pressable style={styles.historyBtn} onPress={() => openHistory(recipe)} hitSlop={10}>
@@ -110,7 +125,7 @@ export default function RecipesListPage() {
                           {c.has_sub_recipe ? " ⤵" : ""}
                         </Text>
                         <Text style={styles.componentMeta}>
-                          {c.component_code || "N/A"} · {c.quantity_required} per unit{c.lazer_needed ? " · Lazer needed" : ""}
+                          {c.component_code || "N/A"} · {c.component_department_name || "No department"} · {c.quantity_required} per unit{c.lazer_needed ? " · Lazer needed" : ""}
                           {c.has_sub_recipe ? " · has its own recipe (multi-level)" : ""}
                         </Text>
                       </View>
@@ -174,6 +189,7 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: "row", alignItems: "center", padding: 20 },
   fgName: { fontSize: 16, fontWeight: "700", color: "#111111", marginBottom: 4 },
   fgCode: { fontSize: 13, color: "#6B7280" },
+  fgDepartments: { fontSize: 12, color: "#8B5CF6", fontWeight: "600", marginTop: 4 },
   editBtn: { padding: 8 },
   historyBtn: { padding: 8 },
 

@@ -8,6 +8,8 @@ import spacing from "@/theme/spacing";
 import PayrollService, { PayrollSummary } from "@/services/payrollService"; // Using your existing service
 import { exportToExcel, exportToPDF } from "@/utils/export";
 import { useSortable } from "@/utils/useSortable";
+import SearchBar from "@/components/common/SearchBar";
+import { useSearch } from "@/utils/useSearch";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
 
 // Helper to format the month string for the UI (e.g., "July 2026")
@@ -28,7 +30,8 @@ export default function EmployeePayrollPage() {
   const [payrollData, setPayrollData] = useState<PayrollSummary[]>([]);
   const [totalPayout, setTotalPayout] = useState(0);
 
-  const { sorted: sortedPayroll, sortKey, sortDir, toggleSort } = useSortable<PayrollSummary>(payrollData);
+  const search = useSearch(payrollData);
+  const { sorted: sortedPayroll, sortKey, sortDir, toggleSort } = useSortable<PayrollSummary>(search.filtered);
 
   useEffect(() => {
     fetchPayroll();
@@ -150,6 +153,13 @@ export default function EmployeePayrollPage() {
         </View>
 
         {/* Payroll Table */}
+        <SearchBar
+          value={search.query}
+          onChangeText={search.setQuery}
+          placeholder="Search by employee..."
+          resultCount={search.filtered.length}
+          totalCount={payrollData.length}
+        />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
           <View style={styles.tableCard}>
             <View style={styles.tableHeader}>

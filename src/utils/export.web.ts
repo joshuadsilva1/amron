@@ -15,8 +15,16 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-export async function exportToExcel(filename: string, headers: string[], rows: ExportCell[][]) {
+// `merges` are sheet ranges (0-indexed, header row = r 0) to merge, e.g.
+// grouping the same parent code across the rows beneath it.
+export async function exportToExcel(
+  filename: string,
+  headers: string[],
+  rows: ExportCell[][],
+  merges?: XLSX.Range[]
+) {
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  if (merges?.length) ws["!merges"] = merges;
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
 

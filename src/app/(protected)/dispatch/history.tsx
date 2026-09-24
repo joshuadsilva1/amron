@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, FlatList, ActivityIndicator } from "react-native";
+import SearchBar from "@/components/common/SearchBar";
+import { useSearch } from "@/utils/useSearch";
 
 import TransactionService from "@/services/transactionService";
 import colors from "@/theme/colors";
@@ -8,6 +10,7 @@ import typography from "@/theme/typography";
 
 export default function ChallanHistoryScreen() {
   const [history, setHistory] = useState<any[]>([]);
+  const search = useSearch(history);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -59,12 +62,20 @@ export default function ChallanHistoryScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Challan History</Text>
+      <SearchBar
+        value={search.query}
+        onChangeText={search.setQuery}
+        placeholder="Search challans by number, party, item..."
+        resultCount={search.filtered.length}
+        totalCount={history.length}
+        style={{ marginTop: 12 }}
+      />
       
       {loading ? (
         <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
       ) : (
         <FlatList
-          data={history}
+          data={search.filtered}
           keyExtractor={(item) => item.challan_number}
           renderItem={renderChallan}
           contentContainerStyle={styles.listContent}

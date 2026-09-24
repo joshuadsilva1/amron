@@ -10,31 +10,60 @@ import api from "@/services/api";
 import RecipeService from "@/services/recipeService";
 
 // --- Reusable Dropdown Component ---
-const SelectInput = ({ label, placeholder, value, options, onSelect, hasRecipeIds }: any) => {
+const SelectInput = ({ label, placeholder, value, options, onSelect, hasRecipeIds, disabled }: any) => {
   const [modalVisible, setModalVisible] = useState(false);
+  const [query, setQuery] = useState("");
   const selectedOption = options?.find((o: any) => o.id === value);
+
+  const closeModal = () => {
+    setModalVisible(false);
+    setQuery("");
+  };
+
+  // Matches on name or item code, so "F1 1001" and "switch base" both work.
+  const q = query.trim().toLowerCase();
+  const visibleOptions = (options || []).filter((o: any) =>
+    !q || `${o.name || ""} ${o.item_code || ""}`.toLowerCase().includes(q)
+  );
 
   return (
     <View style={styles.inputGroup}>
       {label && <Text style={styles.label}>{label}</Text>}
-      <Pressable style={styles.inputBox} onPress={() => setModalVisible(true)}>
+      <Pressable
+        style={[styles.inputBox, disabled && { opacity: 0.5 }]}
+        onPress={() => setModalVisible(true)}
+        disabled={disabled}
+      >
         <Text style={[styles.inputText, !selectedOption && styles.placeholderText]} numberOfLines={1}>
           {selectedOption ? selectedOption.name : placeholder}
         </Text>
         <Feather name="chevron-down" size={16} color="#9CA3AF" />
       </Pressable>
 
-      <Modal visible={modalVisible} transparent animationType="fade">
-        <Pressable style={styles.modalOverlay} onPress={() => setModalVisible(false)}>
-          <View style={styles.dropdownModal}>
+      <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={closeModal}>
+        <Pressable style={styles.modalOverlay} onPress={closeModal}>
+          <Pressable style={styles.dropdownModal} onPress={() => {}}>
             <Text style={styles.dropdownTitle}>{placeholder}</Text>
+            <View style={styles.searchRow}>
+              <Feather name="search" size={16} color="#9CA3AF" />
+              <TextInput
+                style={styles.searchInput}
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Search..."
+                placeholderTextColor="#9CA3AF"
+                autoCorrect={false}
+              />
+            </View>
             <FlatList
-              data={options || []}
+              data={visibleOptions}
               keyExtractor={(item) => String(item.id)}
+              keyboardShouldPersistTaps="handled"
+              ListEmptyComponent={<Text style={styles.noMatchText}>No matches</Text>}
               renderItem={({ item }) => (
                 <Pressable
                   style={styles.dropdownOption}
-                  onPress={() => { onSelect(item.id); setModalVisible(false); }}
+                  onPress={() => { onSelect(item.id); closeModal(); }}
                 >
                   <Text style={[styles.dropdownOptionText, value === item.id && { color: "#8B5CF6", fontWeight: "700" }]}>
                     {item.name} {item.item_code ? `(${item.item_code})` : ""}
@@ -44,7 +73,7 @@ const SelectInput = ({ label, placeholder, value, options, onSelect, hasRecipeId
                 </Pressable>
               )}
             />
-          </View>
+          </Pressable>
         </Pressable>
       </Modal>
     </View>
@@ -62,10 +91,14 @@ export default function RecipeBuilderPage() {
   const [finishedGoods, setFinishedGoods] = useState<any[]>([]);
   const [rawMaterials, setRawMaterials] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
+  // Rank of the top department level — items in those departments are
+  // finished goods, which can be built here but never used as a component.
+  const [finalRank, setFinalRank] = useState<number | null>(null);
 
   // Form State
   const [selectedFG, setSelectedFG] = useState("");
-  const [components, setComponents] = useState<{ id: string, department: string, itemId: string, qty: string }[]>([]);
+  const [fgDepartment, setFgDepartment] = useState("");
+  const [components, setComponents] = useState<{ id: string, department: string, itemId: string, qty: string, lazerNeeded: boolean, colourNeeded: boolean }[]>([]);
   const [notes, setNotes] = useState("");
   const [currentVersion, setCurrentVersion] = useState<number | null>(null);
   const [hasRecipeIds, setHasRecipeIds] = useState<Set<string>>(new Set());
@@ -73,7 +106,7 @@ export default function RecipeBuilderPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [deptsRes, rmRes, recipesRes] = await Promise.all([
+        const [deptsRes, rmRes, recipesRes, levelsRes] = await Promise.all([
           api.get('/departments'),
           // Any item can be "what you're building" now, not just a
           // FINAL-level finished good — that's what lets a component
@@ -81,7 +114,11 @@ export default function RecipeBuilderPage() {
           // makes multi-level BOMs possible.
           api.get('/items'),
           RecipeService.getRecipes().catch(() => []),
+          api.get('/departments/levels').catch(() => null),
         ]);
+
+        const finalLevel = (levelsRes?.data?.data || []).find((l: any) => l.is_final);
+        setFinalRank(finalLevel ? finalLevel.rank : null);
 
         const depts = deptsRes.data?.data || [];
         const materials = rmRes.data?.data || [];
@@ -92,6 +129,7 @@ export default function RecipeBuilderPage() {
 
         if (editingFinishedGoodId) {
           setSelectedFG(editingFinishedGoodId);
+          setFgDepartment(materials.find((m: any) => m.id === editingFinishedGoodId)?.department_id || "");
           const { components: existing, version } = await RecipeService.getRecipe(editingFinishedGoodId);
           setCurrentVersion(version);
           setComponents(existing.map((c) => {
@@ -101,6 +139,8 @@ export default function RecipeBuilderPage() {
               department: material?.department_id || "",
               itemId: c.component_id,
               qty: String(c.quantity_required),
+              lazerNeeded: !!c.lazer_needed,
+              colourNeeded: !!c.colour_needed,
             };
           }));
           setLoadingExisting(false);
@@ -116,11 +156,11 @@ export default function RecipeBuilderPage() {
   const addComponentRow = () => {
     setComponents([
       ...components,
-      { id: Date.now().toString(), department: "", itemId: "", qty: "1" }
+      { id: Date.now().toString(), department: "", itemId: "", qty: "1", lazerNeeded: false, colourNeeded: false }
     ]);
   };
 
-  const updateComponent = (id: string, field: string, value: string) => {
+  const updateComponent = (id: string, field: string, value: string | boolean) => {
     // Functional updater — the department onSelect handler fires two of
     // these back-to-back in the same tick (department, then itemId reset).
     // Without this, the second call closes over the pre-update `components`
@@ -144,6 +184,19 @@ export default function RecipeBuilderPage() {
       return;
     }
 
+    const whiteButColoured = components.find((c) => {
+      if (!c.colourNeeded) return false;
+      const material = rawMaterials.find((m: any) => m.id === c.itemId);
+      return material?.powder_colour === "White";
+    });
+    if (whiteButColoured) {
+      Alert.alert(
+        "Invalid routing",
+        "A White moulded part can't be routed to Colour. Only Black/Grey parts may set Colour needed."
+      );
+      return;
+    }
+
     try {
       setSubmitting(true);
       const result = await RecipeService.createRecipe({
@@ -151,6 +204,8 @@ export default function RecipeBuilderPage() {
         ingredients: components.map((c) => ({
           input_item_id: c.itemId,
           quantity_required: parseFloat(c.qty) || 0,
+          lazer_needed: c.lazerNeeded,
+          colour_needed: c.colourNeeded,
         })),
         notes: notes.trim() || undefined,
       });
@@ -159,6 +214,7 @@ export default function RecipeBuilderPage() {
         router.back();
       } else {
         setSelectedFG("");
+        setFgDepartment("");
         setComponents([]);
         setNotes("");
       }
@@ -168,6 +224,13 @@ export default function RecipeBuilderPage() {
       setSubmitting(false);
     }
   };
+
+  const isFinalDept = (d: any) => finalRank !== null && d.level === finalRank;
+  const finalDeptIds = new Set(departments.filter(isFinalDept).map((d: any) => d.id));
+  // "What are you building" — finished-goods department(s) first.
+  const buildDepartments = [...departments].sort((a, b) => Number(isFinalDept(b)) - Number(isFinalDept(a)));
+  // Components — never a finished-goods department.
+  const componentDepartments = departments.filter((d: any) => !isFinalDept(d));
 
   return (
     <View style={styles.container}>
@@ -190,13 +253,33 @@ export default function RecipeBuilderPage() {
         {!loadingExisting && <>
         <View style={styles.card}>
           <Text style={styles.cardTitle}>1. What are you building?</Text>
-          <SelectInput
-            placeholder="Select an item (finished good or component)..."
-            value={selectedFG}
-            options={finishedGoods}
-            onSelect={setSelectedFG}
-            hasRecipeIds={hasRecipeIds}
-          />
+          <View style={styles.inputSplit}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <SelectInput
+                placeholder="Department..."
+                value={fgDepartment}
+                options={buildDepartments}
+                onSelect={(val: string) => {
+                  setFgDepartment(val);
+                  setSelectedFG(""); // Reset item when dept changes
+                }}
+              />
+            </View>
+            <View style={{ flex: 2 }}>
+              <SelectInput
+                placeholder={fgDepartment ? "Select the item to build..." : "Select a department first"}
+                value={selectedFG}
+                options={
+                  fgDepartment
+                    ? finishedGoods.filter((fg: any) => fg.department_id === fgDepartment)
+                    : finishedGoods.filter((fg: any) => fg.id === selectedFG)
+                }
+                onSelect={setSelectedFG}
+                hasRecipeIds={hasRecipeIds}
+                disabled={!fgDepartment}
+              />
+            </View>
+          </View>
           {finishedGoods.length === 0 && (
             <Text style={styles.helperText}>
               No items yet — add one under Items & QR first.
@@ -219,10 +302,13 @@ export default function RecipeBuilderPage() {
             </View>
           ) : (
             components.map((comp, index) => {
-              // Filter raw materials based on the selected department for this specific row
+              // Only offer parts that belong to this row's department — with
+              // no department picked there's nothing to choose from yet. (A
+              // row loaded from an older recipe whose part has no department
+              // still shows that one part so it doesn't appear blank.)
               const filteredMaterials = comp.department
-                ? rawMaterials.filter((rm: any) => rm.department_id === comp.department)
-                : rawMaterials;
+                ? rawMaterials.filter((rm: any) => rm.department_id === comp.department && !finalDeptIds.has(rm.department_id))
+                : rawMaterials.filter((rm: any) => rm.id === comp.itemId);
 
               return (
                 <View key={comp.id} style={styles.componentRow}>
@@ -236,7 +322,7 @@ export default function RecipeBuilderPage() {
                         <SelectInput 
                           placeholder="Department..." 
                           value={comp.department} 
-                          options={departments} 
+                          options={componentDepartments} 
                           onSelect={(val: string) => {
                             updateComponent(comp.id, 'department', val);
                             updateComponent(comp.id, 'itemId', ''); // Reset item when dept changes
@@ -245,10 +331,20 @@ export default function RecipeBuilderPage() {
                       </View>
                       <View style={{ flex: 2 }}>
                         <SelectInput
-                          placeholder="Select specific part..."
+                          placeholder={comp.department ? "Select specific part..." : "Select a department first"}
                           value={comp.itemId}
                           options={filteredMaterials}
-                          onSelect={(val: string) => updateComponent(comp.id, 'itemId', val)}
+                          disabled={!comp.department}
+                          onSelect={(val: string) => {
+                            updateComponent(comp.id, 'itemId', val);
+                            // A White moulded part can never be routed to
+                            // Colour — clear a stale flag from switching
+                            // away from a Black/Grey part.
+                            const material = rawMaterials.find((rm: any) => rm.id === val);
+                            if (material?.powder_colour === "White") {
+                              updateComponent(comp.id, 'colourNeeded', false);
+                            }
+                          }}
                           hasRecipeIds={hasRecipeIds}
                         />
                       </View>
@@ -256,13 +352,49 @@ export default function RecipeBuilderPage() {
                     
                     <View style={styles.qtyRow}>
                       <Text style={styles.label}>Qty required per unit:</Text>
-                      <TextInput 
+                      <TextInput
                         style={styles.qtyInput}
                         value={comp.qty}
                         onChangeText={(val) => updateComponent(comp.id, 'qty', val)}
                         keyboardType="numeric"
                       />
                     </View>
+
+                    {(() => {
+                      const material = rawMaterials.find((rm: any) => rm.id === comp.itemId);
+                      const isWhite = material?.powder_colour === "White";
+                      return (
+                        <View style={styles.routingRow}>
+                          <Pressable
+                            style={[styles.routingChip, comp.lazerNeeded && styles.routingChipActive]}
+                            onPress={() => updateComponent(comp.id, 'lazerNeeded', !comp.lazerNeeded)}
+                          >
+                            <Feather name="zap" size={13} color={comp.lazerNeeded ? colors.white : "#374151"} style={{ marginRight: 4 }} />
+                            <Text style={[styles.routingChipText, comp.lazerNeeded && styles.routingChipTextActive]}>Laser needed</Text>
+                          </Pressable>
+                          <Pressable
+                            style={[
+                              styles.routingChip,
+                              comp.colourNeeded && styles.routingChipActive,
+                              isWhite && styles.routingChipDisabled,
+                            ]}
+                            disabled={isWhite}
+                            onPress={() => updateComponent(comp.id, 'colourNeeded', !comp.colourNeeded)}
+                          >
+                            <Feather name="droplet" size={13} color={comp.colourNeeded ? colors.white : "#374151"} style={{ marginRight: 4 }} />
+                            <Text style={[styles.routingChipText, comp.colourNeeded && styles.routingChipTextActive]}>Colour needed</Text>
+                          </Pressable>
+                          {material?.powder_colour && (
+                            <View style={[styles.colourBadge, isWhite && styles.colourBadgeWarn]}>
+                              <Text style={[styles.colourBadgeText, isWhite && styles.colourBadgeWarnText]}>
+                                {material.powder_colour}
+                                {isWhite ? " · can't route to Colour" : ""}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      );
+                    })()}
                   </View>
 
                   <Pressable style={styles.deleteBtn} onPress={() => removeComponent(comp.id)}>
@@ -328,6 +460,17 @@ const styles = StyleSheet.create({
   
   qtyRow: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end" },
   qtyInput: { backgroundColor: colors.white, borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 8, width: 80, height: 40, paddingHorizontal: 12, fontSize: 15, textAlign: "center", marginLeft: 12 },
+
+  routingRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 10 },
+  routingChip: { flexDirection: "row", alignItems: "center", backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 20, paddingVertical: 6, paddingHorizontal: 12 },
+  routingChipActive: { backgroundColor: "#111111", borderColor: "#111111" },
+  routingChipDisabled: { opacity: 0.4 },
+  routingChipText: { fontSize: 12, fontWeight: "600", color: "#374151" },
+  routingChipTextActive: { color: colors.white },
+  colourBadge: { backgroundColor: "#F3F4F6", borderRadius: 20, paddingVertical: 6, paddingHorizontal: 12 },
+  colourBadgeWarn: { backgroundColor: "#FEF2F2" },
+  colourBadgeText: { fontSize: 12, fontWeight: "600", color: "#6B7280" },
+  colourBadgeWarnText: { color: "#DC2626" },
   notesInput: { backgroundColor: colors.white, borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 8, minHeight: 60, padding: 12, fontSize: 14, textAlignVertical: "top" },
   
   deleteBtn: { padding: 12, marginLeft: 12, marginTop: 2 },
@@ -345,6 +488,9 @@ const styles = StyleSheet.create({
   
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", padding: 20 },
   dropdownModal: { width: "100%", maxWidth: 400, backgroundColor: colors.white, borderRadius: 16, maxHeight: "60%", overflow: "hidden" },
+  searchRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
+  searchInput: { flex: 1, fontSize: 15, color: "#111111", paddingVertical: 4 },
+  noMatchText: { padding: 20, textAlign: "center", color: "#9CA3AF", fontSize: 14 },
   dropdownTitle: { fontSize: 16, fontWeight: "700", color: "#111111", padding: 20, borderBottomWidth: 1, borderBottomColor: "#E5E7EB", backgroundColor: "#F9FAFB" },
   dropdownOption: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 16, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
   dropdownOptionText: { fontSize: 15, color: "#374151" }

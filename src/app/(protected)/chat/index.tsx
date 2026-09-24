@@ -6,7 +6,10 @@ import { router, useFocusEffect } from "expo-router";
 
 import colors from "@/theme/colors";
 import spacing from "@/theme/spacing";
-import ChatService, { ChatChannelSummary, ChatUser } from "@/services/chatService";
+import ChatService, { ChatChannelSummary, ChatUser, ChatSearchResult } from "@/services/chatService";
+import SearchBar from "@/components/common/SearchBar";
+import { useSearch } from "@/utils/useSearch";
+import { formatRole, roleAndDepartment } from "@/utils/chatFormat";
 
 const POLL_INTERVAL_MS = 8000;
 
@@ -29,10 +32,49 @@ export default function ChatInboxScreen() {
   // New chat modal
   const [modalVisible, setModalVisible] = useState(false);
   const [mode, setMode] = useState<"pick" | "group">("pick");
-  const [search, setSearch] = useState("");
   const [selectedForGroup, setSelectedForGroup] = useState<string[]>([]);
   const [groupName, setGroupName] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // Inbox search: filters the conversation list instantly (name, role,
+  // department, last message) and, for 2+ characters, also asks the server
+  // to search message text — server-side limited to your own conversations.
+  const convoSearch = useSearch(
+    channels,
+    (c) => `${c.name} ${c.last_message || ""} ${roleAndDepartment(c.other_user)}`,
+    [channels]
+  );
+  const [messageResults, setMessageResults] = useState<ChatSearchResult[]>([]);
+  const [searchingMessages, setSearchingMessages] = useState(false);
+
+  useEffect(() => {
+    const q = convoSearch.query.trim();
+    if (q.length < 2) {
+      setMessageResults([]);
+      setSearchingMessages(false);
+      return;
+    }
+    setSearchingMessages(true);
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const results = await ChatService.searchMessages(q);
+        if (!cancelled) setMessageResults(results);
+      } catch {
+        if (!cancelled) setMessageResults([]);
+      } finally {
+        if (!cancelled) setSearchingMessages(false);
+      }
+    }, 350);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [convoSearch.query]);
+
+  // People picker (New Chat / New Group): match name, role or department.
+  const directorySearch = useSearch(
+    directory,
+    (u) => `${u.name} ${formatRole(u.role_name)} ${u.department_name || ""}`,
+    [directory]
+  );
 
   const fetchChannels = useCallback(async (showSpinner = false) => {
     if (showSpinner) setLoading(true);
@@ -54,9 +96,9 @@ export default function ChatInboxScreen() {
     }, [fetchChannels])
   );
 
-  const openNewChatModal = async () => {
-    setMode("pick");
-    setSearch("");
+  const openNewChatModal = async (startMode: "pick" | "group" = "pick") => {
+    setMode(startMode);
+    directorySearch.setQuery("");
     setSelectedForGroup([]);
     setGroupName("");
     setModalVisible(true);
@@ -108,36 +150,76 @@ export default function ChatInboxScreen() {
     }
   };
 
-  const filteredDirectory = directory.filter((u) =>
-    u.name.toLowerCase().includes(search.toLowerCase())
-  );
-
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <View>
           <Text style={styles.title}>Chat</Text>
-          <Text style={styles.subtitle}>Message anyone in the system.</Text>
+          <Text style={styles.subtitle}>Message your colleagues — one-to-one or in a group.</Text>
         </View>
-        <Pressable style={styles.newBtn} onPress={openNewChatModal}>
-          <Feather name="edit" size={16} color={colors.white} style={{ marginRight: 6 }} />
-          <Text style={styles.newBtnText}>New Chat</Text>
-        </Pressable>
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <Pressable style={styles.newBtnSecondary} onPress={() => openNewChatModal("group")}>
+            <Feather name="users" size={16} color="#8B5CF6" style={{ marginRight: 6 }} />
+            <Text style={styles.newBtnSecondaryText}>New Group</Text>
+          </Pressable>
+          <Pressable style={styles.newBtn} onPress={() => openNewChatModal("pick")}>
+            <Feather name="edit" size={16} color={colors.white} style={{ marginRight: 6 }} />
+            <Text style={styles.newBtnText}>New Chat</Text>
+          </Pressable>
+        </View>
       </View>
+
+      <SearchBar
+        value={convoSearch.query}
+        onChangeText={convoSearch.setQuery}
+        placeholder="Search conversations and messages..."
+        resultCount={convoSearch.filtered.length}
+        totalCount={channels.length}
+        style={{ maxWidth: undefined }}
+      />
 
       {loading ? (
         <ActivityIndicator size="large" color="#8B5CF6" style={{ marginTop: 60 }} />
       ) : (
         <FlatList
-          data={channels}
+          data={convoSearch.filtered}
           keyExtractor={(item) => item.channel_id}
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Feather name="message-circle" size={48} color="#D1D5DB" />
-              <Text style={styles.emptyStateTitle}>No conversations yet</Text>
-              <Text style={styles.emptyStateText}>Tap "New Chat" to message someone.</Text>
-            </View>
+            convoSearch.isSearching ? null : (
+              <View style={styles.emptyState}>
+                <Feather name="message-circle" size={48} color="#D1D5DB" />
+                <Text style={styles.emptyStateTitle}>No conversations yet</Text>
+                <Text style={styles.emptyStateText}>Tap "New Chat" to message someone, or "New Group" to start a group.</Text>
+              </View>
+            )
+          }
+          ListFooterComponent={
+            convoSearch.isSearching && convoSearch.query.trim().length >= 2 ? (
+              <View style={{ marginTop: 8 }}>
+                <Text style={styles.resultsHeading}>
+                  Messages{searchingMessages ? " — searching..." : messageResults.length ? "" : " — no matches"}
+                </Text>
+                {messageResults.map((r) => (
+                  <Pressable
+                    key={r.message_id}
+                    style={styles.messageResult}
+                    onPress={() =>
+                      router.push({
+                        pathname: "/(protected)/chat/[id]",
+                        params: { id: r.channel_id, name: r.channel_name, type: r.channel_type },
+                      })
+                    }
+                  >
+                    <Text style={styles.messageResultChannel} numberOfLines={1}>
+                      {r.channel_name} · {r.sender_name}
+                    </Text>
+                    <Text style={styles.messageResultBody} numberOfLines={2}>{r.body}</Text>
+                    <Text style={styles.channelTime}>{new Date(r.created_at).toLocaleString()}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null
           }
           renderItem={({ item }) => (
             <Pressable
@@ -154,6 +236,11 @@ export default function ChatInboxScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.channelName} numberOfLines={1}>{item.name}</Text>
+                {(item.type === "GROUP" || !!roleAndDepartment(item.other_user)) && (
+                  <Text style={styles.channelMeta} numberOfLines={1}>
+                    {item.type === "GROUP" ? `${item.member_count} members` : roleAndDepartment(item.other_user)}
+                  </Text>
+                )}
                 <Text style={styles.channelPreview} numberOfLines={1}>
                   {item.last_message || "No messages yet"}
                 </Text>
@@ -209,14 +296,14 @@ export default function ChatInboxScreen() {
 
             <TextInput
               style={styles.searchInput}
-              placeholder="Search people..."
+              placeholder="Search by name, role or department..."
               placeholderTextColor="#9CA3AF"
-              value={search}
-              onChangeText={setSearch}
+              value={directorySearch.query}
+              onChangeText={directorySearch.setQuery}
             />
 
             <FlatList
-              data={filteredDirectory}
+              data={directorySearch.filtered}
               keyExtractor={(item) => item.id}
               style={{ maxHeight: 320 }}
               ListEmptyComponent={<Text style={styles.dropdownEmptyText}>No users found.</Text>}
@@ -233,7 +320,7 @@ export default function ChatInboxScreen() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.userName}>{item.name}</Text>
-                      {item.role_name && <Text style={styles.userRole}>{item.role_name}</Text>}
+                      {!!roleAndDepartment(item) && <Text style={styles.userRole}>{roleAndDepartment(item)}</Text>}
                     </View>
                     {mode === "group" && (
                       <View style={[styles.checkbox, isSelected && styles.checkboxChecked]}>
@@ -272,6 +359,13 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 14, color: "#6B7280" },
   newBtn: { flexDirection: "row", alignItems: "center", backgroundColor: "#8B5CF6", paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12 },
   newBtnText: { color: colors.white, fontSize: 14, fontWeight: "600" },
+  newBtnSecondary: { flexDirection: "row", alignItems: "center", backgroundColor: "#F3E8FF", paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12 },
+  newBtnSecondaryText: { color: "#8B5CF6", fontSize: 14, fontWeight: "600" },
+  channelMeta: { fontSize: 11, color: "#8B5CF6", fontWeight: "600", marginBottom: 2 },
+  resultsHeading: { fontSize: 12, fontWeight: "700", color: "#6B7280", letterSpacing: 0.5, marginBottom: 8, textTransform: "uppercase" },
+  messageResult: { backgroundColor: colors.white, borderRadius: 12, borderWidth: 1, borderColor: "#E5E7EB", padding: 14, marginBottom: 8 },
+  messageResultChannel: { fontSize: 12, fontWeight: "700", color: "#8B5CF6", marginBottom: 3 },
+  messageResultBody: { fontSize: 14, color: "#111111", marginBottom: 4 },
 
   listContent: { paddingBottom: 40 },
   channelCard: { flexDirection: "row", alignItems: "center", backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", padding: 16, marginBottom: 10 },

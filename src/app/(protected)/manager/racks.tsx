@@ -7,6 +7,8 @@ import colors from "@/theme/colors";
 import spacing from "@/theme/spacing";
 import api from "@/services/api";
 import { useSortable } from "@/utils/useSortable";
+import SearchBar from "@/components/common/SearchBar";
+import { useSearch } from "@/utils/useSearch";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
 
 const SelectInput = ({ label, placeholder, value, options, onSelect }: any) => {
@@ -94,7 +96,8 @@ export default function ManageRacksPage() {
   const filteredRacks = racks.filter(rack =>
     activeTab === "All" ? true : getDepartmentName(rack.department_id) === activeTab
   );
-  const { sorted: sortedRacks, sortKey, sortDir, toggleSort } = useSortable<any>(filteredRacks);
+  const search = useSearch(filteredRacks, (r: any) => `${Object.values(r).join(" ")} ${getDepartmentName(r.department_id)}`);
+  const { sorted: sortedRacks, sortKey, sortDir, toggleSort } = useSortable<any>(search.filtered);
 
   const openEditModal = (rack?: any) => {
     if (rack) {
@@ -179,6 +182,13 @@ export default function ManageRacksPage() {
           </ScrollView>
         </View>
 
+        <SearchBar
+          value={search.query}
+          onChangeText={search.setQuery}
+          placeholder="Search racks..."
+          resultCount={search.filtered.length}
+          totalCount={filteredRacks.length}
+        />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
           <View style={styles.tableCard}>
             <View style={styles.tableHeader}>
@@ -191,7 +201,7 @@ export default function ManageRacksPage() {
 
             {loading ? (
                <ActivityIndicator size="large" color="#8B5CF6" style={{ marginVertical: 60 }} />
-            ) : filteredRacks.length === 0 ? (
+            ) : search.filtered.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text style={styles.emptyStateText}>No racks configured yet.</Text>
               </View>

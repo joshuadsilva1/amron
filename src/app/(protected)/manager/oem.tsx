@@ -12,6 +12,8 @@ import ClientService, { Client } from "@/services/clientService";
 import ItemService, { MasterItem } from "@/services/itemService";
 import { exportToPDF } from "@/utils/export";
 import { useSortable } from "@/utils/useSortable";
+import SearchBar from "@/components/common/SearchBar";
+import { useSearch } from "@/utils/useSearch";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
 
 // --- Reusable Dropdown Component ---
@@ -80,9 +82,15 @@ export default function OEMConversionPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [masterItems, setMasterItems] = useState<MasterItem[]>([]);
 
-  const clientOrdersSort = useSortable<OrderLineItem>(clientOrders);
-  const aggregatedSort = useSortable<ClubbedOrder>(aggregatedOrders);
-  const mappingsSort = useSortable<OEMMapping>(mappings);
+  // One search box, one filter per tab — switching tabs keeps each tab's own query.
+  const clientSearch = useSearch(clientOrders);
+  const aggregatedSearch = useSearch(aggregatedOrders);
+  const mappingsSearch = useSearch(mappings);
+  const clientOrdersSort = useSortable<OrderLineItem>(clientSearch.filtered);
+  const aggregatedSort = useSortable<ClubbedOrder>(aggregatedSearch.filtered);
+  const mappingsSort = useSortable<OEMMapping>(mappingsSearch.filtered);
+  const activeSearch = activeTab === "client_wise" ? clientSearch : activeTab === "aggregated" ? aggregatedSearch : mappingsSearch;
+  const activeTotal = activeTab === "client_wise" ? clientOrders.length : activeTab === "aggregated" ? aggregatedOrders.length : mappings.length;
 
   // Add Mapping modal
   const [isModalVisible, setModalVisible] = useState(false);
@@ -248,6 +256,14 @@ export default function OEMConversionPage() {
             </Pressable>
           )}
         </View>
+
+        <SearchBar
+          value={activeSearch.query}
+          onChangeText={activeSearch.setQuery}
+          placeholder={activeTab === "mappings" ? "Search mappings by client, code, product..." : "Search by client, product, code, status..."}
+          resultCount={activeSearch.filtered.length}
+          totalCount={activeTotal}
+        />
 
         {/* Tab Content */}
         <View style={styles.tableCard}>

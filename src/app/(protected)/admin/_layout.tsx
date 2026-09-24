@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView} from "react-native";
 import { Slot, usePathname, router } from "expo-router";
+import RequireModuleAccess from "@/components/common/RequireModuleAccess";
 
 const ADMIN_TABS = [
   { name: "Users", route: "/(protected)/admin/users" },
@@ -9,12 +10,15 @@ const ADMIN_TABS = [
   { name: "Routing Editor", route: "/(protected)/admin/routing" },
     { name: "Roles", route: "/(protected)/admin/roles" },
   { name: "WhatsApp", route: "/(protected)/admin/whatsapp" },
+  { name: "Settings", route: "/(protected)/admin/settings" },
+  { name: "Audit Log", route: "/(protected)/admin/audit-log" },
 ];
 
 export default function AdminLayout() {
   const pathname = usePathname();
 
   return (
+    <RequireModuleAccess route="/(protected)/admin">
     <View style={styles.container}>
       <View style={styles.header}>
   <Text style={styles.pageTitle}>Admin Control Center</Text>
@@ -50,6 +54,7 @@ export default function AdminLayout() {
         <Slot />
       </View>
     </View>
+    </RequireModuleAccess>
   );
 }
 

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { clearSession } from "@/utils/storage";
 
 interface Module {
   name: string;
@@ -50,13 +51,19 @@ const useAuthStore = create<AuthState>((set) => ({
       loading: false,
     }),
 
-  logout: () =>
+  // Clears the saved session too, not just memory — app/index.tsx restores
+  // whatever is saved on the next load, so leaving it behind meant "logging
+  // out" on a shared device handed the next visitor the previous user's
+  // account (chats included).
+  logout: () => {
+    clearSession().catch(() => {});
     set({
       user: null,
       jwt: null,
       authenticated: false,
       loading: false,
-    }),
+    });
+  },
 
   setLoading: (loading) => set({ loading }),
 }));

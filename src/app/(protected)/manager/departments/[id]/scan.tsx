@@ -79,6 +79,7 @@ export default function ScanInOutPage() {
   const [chalanNo, setChalanNo] = useState("");
   const [chalanPhoto, setChalanPhoto] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [checkingQc, setCheckingQc] = useState(false);
 
   // Recent Movements List
   const [movements, setMovements] = useState<any[]>([]);
@@ -134,7 +135,7 @@ export default function ScanInOutPage() {
     if (Platform.OS === 'web') {
       const code = window.prompt(`Simulate Camera: Enter ${type === 'item' ? 'Item' : 'Rack'} Code`);
       if (code) {
-        if (type === "item") setScannedItemCode(code);
+        if (type === "item") resolveItemScan(code);
         if (type === "rack") setScannedRack(code);
       }
       return;
@@ -147,18 +148,53 @@ export default function ScanInOutPage() {
         return;
       }
     }
-    
+
     setActiveScanner(type);
+  };
+
+  // Hard validation rule: a batch/bin that hasn't passed QC must never be
+  // scanned IN. Bins are looked up by QR code in the registry — a code
+  // that isn't a registered bin (e.g. a plain item-master barcode with no
+  // batch/QC tracking) is unaffected and scans in as before. The backend
+  // enforces the same rule on submit (see /transactions/manual), so a
+  // network hiccup here can't be used to bypass the gate.
+  const resolveItemScan = async (code: string) => {
+    if (scanType !== "in") {
+      setScannedItemCode(code);
+      return;
+    }
+    setCheckingQc(true);
+    try {
+      const res = await api.get(`/transactions/bin/${encodeURIComponent(code)}`);
+      const qcStatus = res.data?.data?.qc_status;
+      if (qcStatus && qcStatus !== "Passed") {
+        Alert.alert(
+          "QC Not Approved",
+          `This batch's QC status is '${qcStatus}'. It cannot be scanned in until QC approves it.`
+        );
+        return;
+      }
+      setScannedItemCode(code);
+    } catch (error: any) {
+      if (error?.response?.status === 404) {
+        setScannedItemCode(code);
+      } else {
+        console.warn("QC lookup failed, allowing scan (server will re-check on submit)", error);
+        setScannedItemCode(code);
+      }
+    } finally {
+      setCheckingQc(false);
+    }
   };
 
   // --- Handles the actual barcode read event ---
   const handleBarCodeScanned = ({ type, data }: { type: string, data: string }) => {
     if (activeScanner === "item") {
-      setScannedItemCode(data);
+      resolveItemScan(data);
     } else if (activeScanner === "rack") {
       setScannedRack(data);
     }
-    
+
     // Auto-close scanner after successful read
     setActiveScanner(null);
   };
@@ -224,7 +260,8 @@ export default function ScanInOutPage() {
         quantity: parseFloat(quantity) || 1,
         department_id: selectedDeptId,
         reason: scannedRack ? `Rack: ${scannedRack}` : 'Standard Scan',
-        reference_number: chalanNo || undefined
+        reference_number: chalanNo || undefined,
+        qr_code_string: scannedItemCode || undefined,
       };
 
       const res = await api.post('/transactions/manual', payload);
@@ -312,10 +349,18 @@ export default function ScanInOutPage() {
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>1. Scan item QR</Text>
-                <Pressable style={[styles.scanTriggerBtn, scannedItemCode && { borderColor: "#8B5CF6", backgroundColor: "#F5F3FF" }]} onPress={() => openScanner("item")}>
-                  <Feather name="camera" size={18} color={scannedItemCode ? "#8B5CF6" : "#374151"} style={{ marginRight: 8 }} />
+                <Pressable
+                  style={[styles.scanTriggerBtn, scannedItemCode && { borderColor: "#8B5CF6", backgroundColor: "#F5F3FF" }]}
+                  onPress={() => openScanner("item")}
+                  disabled={checkingQc}
+                >
+                  {checkingQc ? (
+                    <ActivityIndicator size="small" color="#374151" style={{ marginRight: 8 }} />
+                  ) : (
+                    <Feather name="camera" size={18} color={scannedItemCode ? "#8B5CF6" : "#374151"} style={{ marginRight: 8 }} />
+                  )}
                   <Text style={[styles.scanTriggerText, scannedItemCode && { color: "#8B5CF6" }]}>
-                    {scannedItemCode ? `Scanned: ${scannedItemCode}` : "Scan item"}
+                    {checkingQc ? "Checking QC status…" : scannedItemCode ? `Scanned: ${scannedItemCode}` : "Scan item"}
                   </Text>
                 </Pressable>
               </View>

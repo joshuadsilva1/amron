@@ -3,12 +3,16 @@ import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, ActivityIndic
 import Alert from "@/utils/alert";
 import { Feather } from "@expo/vector-icons";
 
-import WhatsAppService, { WhatsAppConfig } from "@/services/whatsappService";
+import WhatsAppService, { WhatsAppConfig, WhatsAppProvider } from "@/services/whatsappService";
 
 export default function WhatsAppSettingsScreen() {
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState<WhatsAppConfig | null>(null);
 
+  // CallMeBot = free, messages only the owner's own number. Gupshup = paid
+  // business API that can message anyone (needs approved templates for
+  // anything outside a 24-hour window).
+  const [provider, setProvider] = useState<WhatsAppProvider>("callmebot");
   const [apiKey, setApiKey] = useState("");
   const [appName, setAppName] = useState("");
   const [senderNumber, setSenderNumber] = useState("");
@@ -27,6 +31,7 @@ export default function WhatsAppSettingsScreen() {
       const data = await WhatsAppService.getConfig();
       setConfig(data);
       if (data) {
+        setProvider(data.provider === "gupshup" ? "gupshup" : "callmebot");
         setAppName(data.app_name || "");
         setSenderNumber(data.sender_number || "");
       }
@@ -39,12 +44,13 @@ export default function WhatsAppSettingsScreen() {
 
   const handleSave = async () => {
     if (!apiKey.trim() || !senderNumber.trim()) {
-      Alert.alert("Error", "API key and sender number are required.");
+      Alert.alert("Error", provider === "callmebot" ? "API key and your WhatsApp number are required." : "API key and sender number are required.");
       return;
     }
     try {
       setSaving(true);
       await WhatsAppService.saveConfig({
+        provider,
         api_key: apiKey.trim(),
         app_name: appName.trim() || undefined,
         sender_number: senderNumber.trim(),
@@ -82,18 +88,41 @@ export default function WhatsAppSettingsScreen() {
   return (
     <ScrollView showsVerticalScrollIndicator={false}>
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Gupshup account</Text>
-        <Text style={styles.helperText}>
-          Get these from your Gupshup dashboard after signup: the API key, your app name, and the WhatsApp
-          Business number you've linked there.
-        </Text>
+        <Text style={styles.sectionTitle}>WhatsApp sending</Text>
+
+        <View style={styles.providerRow}>
+          <Pressable style={[styles.providerBtn, provider === "callmebot" && styles.providerBtnActive]} onPress={() => setProvider("callmebot")}>
+            <Text style={[styles.providerText, provider === "callmebot" && styles.providerTextActive]}>CallMeBot (free)</Text>
+          </Pressable>
+          <Pressable style={[styles.providerBtn, provider === "gupshup" && styles.providerBtnActive]} onPress={() => setProvider("gupshup")}>
+            <Text style={[styles.providerText, provider === "gupshup" && styles.providerTextActive]}>Gupshup (paid)</Text>
+          </Pressable>
+        </View>
+
+        {provider === "callmebot" ? (
+          <View style={styles.stepsBox}>
+            <Text style={styles.stepsTitle}>One-time setup (about 2 minutes)</Text>
+            <Text style={styles.stepText}>1. On the owner's phone, save this contact: +34 623 91 22 04</Text>
+            <Text style={styles.stepText}>2. In WhatsApp, send that contact exactly: I allow callmebot to send me messages</Text>
+            <Text style={styles.stepText}>3. It replies with an API key. Enter the key and the same phone's number below.</Text>
+            <Text style={styles.stepNote}>
+              Free and personal-use only: it can only message the number that activated it, so every daily report
+              must be sent to that one number.
+            </Text>
+          </View>
+        ) : (
+          <Text style={styles.helperText}>
+            Get these from your Gupshup dashboard after signup: the API key, your app name, and the WhatsApp
+            Business number you've linked there.
+          </Text>
+        )}
 
         {config && (
           <View style={styles.statusBox}>
             <Feather name={config.is_active ? "check-circle" : "alert-triangle"} size={16} color={config.is_active ? "#10B981" : "#D97706"} />
             <Text style={styles.statusText}>
               {config.is_active
-                ? `Configured — sender ${config.sender_number}, key ending ${config.api_key_last4}`
+                ? `Configured (${config.provider === "callmebot" ? "CallMeBot" : "Gupshup"}) — ${config.provider === "callmebot" ? "number" : "sender"} ${config.sender_number}, key ending ${config.api_key_last4}`
                 : "Not configured yet"}
             </Text>
           </View>
@@ -105,25 +134,27 @@ export default function WhatsAppSettingsScreen() {
             style={styles.input}
             value={apiKey}
             onChangeText={setApiKey}
-            placeholder={config ? "Enter a new key to replace the saved one" : "Your Gupshup API key"}
+            placeholder={config ? "Enter a new key to replace the saved one" : provider === "callmebot" ? "The key CallMeBot sent you" : "Your Gupshup API key"}
             placeholderTextColor="#9CA3AF"
             secureTextEntry
           />
         </View>
 
-        <View style={styles.formGroup}>
-          <Text style={styles.label}>App Name</Text>
-          <TextInput
-            style={styles.input}
-            value={appName}
-            onChangeText={setAppName}
-            placeholder="Your Gupshup app name"
-            placeholderTextColor="#9CA3AF"
-          />
-        </View>
+        {provider === "gupshup" && (
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>App Name</Text>
+            <TextInput
+              style={styles.input}
+              value={appName}
+              onChangeText={setAppName}
+              placeholder="Your Gupshup app name"
+              placeholderTextColor="#9CA3AF"
+            />
+          </View>
+        )}
 
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Sender (WhatsApp Business) Number</Text>
+          <Text style={styles.label}>{provider === "callmebot" ? "Your WhatsApp number (the one that activated it)" : "Sender (WhatsApp Business) Number"}</Text>
           <TextInput
             style={styles.input}
             value={senderNumber}
@@ -146,7 +177,7 @@ export default function WhatsAppSettingsScreen() {
             Confirms your credentials actually work end to end before anything else relies on this.
           </Text>
           <View style={styles.formGroup}>
-            <Text style={styles.label}>Test recipient number</Text>
+            <Text style={styles.label}>{config.provider === "callmebot" ? "Send the test to (your activated number)" : "Test recipient number"}</Text>
             <TextInput
               style={styles.input}
               value={testNumber}
@@ -171,6 +202,15 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 18, fontWeight: "700", color: "#111111", marginBottom: 8 },
   helperText: { fontSize: 13, color: "#6B7280", lineHeight: 19, marginBottom: 16 },
 
+  providerRow: { flexDirection: "row", backgroundColor: "#F3F4F6", borderRadius: 12, padding: 4, marginBottom: 16 },
+  providerBtn: { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 8 },
+  providerBtnActive: { backgroundColor: "#111111" },
+  providerText: { fontSize: 14, fontWeight: "600", color: "#6B7280" },
+  providerTextActive: { color: "#FFFFFF" },
+  stepsBox: { backgroundColor: "#F5F3FF", borderRadius: 12, padding: 16, marginBottom: 16, gap: 6 },
+  stepsTitle: { fontSize: 14, fontWeight: "700", color: "#5B21B6", marginBottom: 2 },
+  stepText: { fontSize: 13, color: "#374151", lineHeight: 19 },
+  stepNote: { fontSize: 12, color: "#6B7280", lineHeight: 18, marginTop: 4 },
   statusBox: { flexDirection: "row", alignItems: "center", backgroundColor: "#F9FAFB", padding: 12, borderRadius: 10, marginBottom: 16, gap: 8 },
   statusText: { fontSize: 13, fontWeight: "600", color: "#374151", flex: 1 },
 
