@@ -62,6 +62,22 @@ export interface PendingChallan {
 
 
 
+export interface LedgerEntry {
+  id: string;
+  created_at: string | null;
+  product_id: string;
+  item_code: string | null;
+  product_name: string;
+  unit_of_measure: string | null;
+  transaction_type: "IN" | "OUT";
+  quantity: number;
+  department_id: string;
+  department_name: string | null;
+  reason: string | null;
+  reference: string | null;
+  created_by: string | null;
+}
+
 export default class TransactionService {
   static async getBinDetails(qrCodeString: string): Promise<BinDetails> {
     const response = await api.get<{ status: string; data: BinDetails }>(
@@ -112,6 +128,13 @@ export default class TransactionService {
   }> {
     const response = await api.post("/transactions/assemble", payload);
     return response.data;
+  }
+
+  // Every stock movement (scan in/out, supplier receipts, material sent
+  // to suppliers, transfers, production), newest first.
+  static async getLedger(params?: { department_id?: string; product_id?: string }): Promise<LedgerEntry[]> {
+    const response = await api.get<{ status: string; data: LedgerEntry[] }>("/transactions/ledger", { params });
+    return response.data.data;
   }
 
   static async getChallanHistory(): Promise<ChallanHistoryEntry[]> {

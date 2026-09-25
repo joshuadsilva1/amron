@@ -70,7 +70,7 @@ export default function TransactionHistoryPage() {
     try {
       setLoading(true);
       const [historyData, deptsData] = await Promise.all([
-        TransactionService.getChallanHistory().catch(() => []),
+        TransactionService.getLedger().catch(() => []),
         TransactionService.getDepartments().catch(() => [])
       ]);
 
@@ -90,9 +90,10 @@ export default function TransactionHistoryPage() {
 
   // Filter logic based on search and dropdowns
   const filteredTransactions = transactions.filter((tx) => {
-    const matchesSearch = 
-      tx.challan_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      tx.product_name?.toLowerCase().includes(searchQuery.toLowerCase());
+    const q = searchQuery.trim().toLowerCase();
+    const matchesSearch = !q ||
+      [tx.item_code, tx.product_name, tx.reference, tx.reason, tx.created_by]
+        .some((v) => String(v || "").toLowerCase().includes(q));
     
     const matchesDept = selectedDept ? tx.department_id === selectedDept : true;
     const matchesProduct = selectedProduct ? tx.product_id === selectedProduct : true;
@@ -114,14 +115,18 @@ export default function TransactionHistoryPage() {
   ];
 
   const getExportData = () => ({
-    headers: ["Challan", "Product", "Type", "Qty", "Department", "Date"],
-    rows: filteredTransactions.map((tx) => [
-      tx.challan_number || "-",
+    headers: ["Date", "Code", "Product", "Type", "Qty", "Unit", "Department", "Reason", "Reference", "By"],
+    rows: sortedTransactions.map((tx) => [
+      tx.created_at ? new Date(tx.created_at).toLocaleString() : "-",
+      tx.item_code || "-",
       tx.product_name || "-",
       tx.transaction_type,
       tx.quantity,
+      tx.unit_of_measure || "",
       tx.department_name || "-",
-      tx.created_at ? new Date(tx.created_at).toLocaleDateString() : "-",
+      tx.reason || "-",
+      tx.reference || "-",
+      tx.created_by || "-",
     ]),
   });
 
@@ -152,7 +157,7 @@ export default function TransactionHistoryPage() {
           <View style={styles.headerLeft}>
             <Text style={styles.title}>Transaction History</Text>
             <Text style={styles.subtitle}>
-              Every stock movement, product-wise. Edit or delete any entry — live stock across all departments updates automatically.
+              Every stock movement — scans in/out, supplier receipts, material sent to suppliers, transfers and production.
             </Text>
           </View>
 
@@ -174,7 +179,7 @@ export default function TransactionHistoryPage() {
             <Feather name="search" size={16} color="#9CA3AF" style={{ marginRight: 8 }} />
             <TextInput 
               style={styles.searchInput}
-              placeholder="Search product or chalan..."
+              placeholder="Search code, product, reason, reference..."
               placeholderTextColor="#9CA3AF"
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -208,30 +213,39 @@ export default function TransactionHistoryPage() {
             ) : (
               <View>
                 <View style={styles.tableHeader}>
-                  <SortableHeaderCell label="CHALLAN" active={sortKey === "challan_number"} direction={sortDir} onPress={() => toggleSort("challan_number")} textStyle={styles.columnHeader} containerStyle={{ width: 130 }} />
-                  <SortableHeaderCell label="PRODUCT" active={sortKey === "product_name"} direction={sortDir} onPress={() => toggleSort("product_name")} textStyle={styles.columnHeader} containerStyle={{ width: 180 }} />
-                  <SortableHeaderCell label="TYPE" active={sortKey === "transaction_type"} direction={sortDir} onPress={() => toggleSort("transaction_type")} textStyle={styles.columnHeader} containerStyle={{ width: 90 }} />
-                  <SortableHeaderCell label="QTY" active={sortKey === "quantity"} direction={sortDir} onPress={() => toggleSort("quantity")} textStyle={styles.columnHeader} containerStyle={{ width: 80 }} />
-                  <SortableHeaderCell label="DEPARTMENT" active={sortKey === "department_name"} direction={sortDir} onPress={() => toggleSort("department_name")} textStyle={styles.columnHeader} containerStyle={{ width: 150 }} />
-                  <SortableHeaderCell label="DATE" active={sortKey === "created_at"} direction={sortDir} onPress={() => toggleSort("created_at")} textStyle={styles.columnHeader} containerStyle={{ flex: 1, minWidth: 110 }} />
+                  <SortableHeaderCell label="DATE" active={sortKey === "created_at"} direction={sortDir} onPress={() => toggleSort("created_at")} textStyle={styles.columnHeader} containerStyle={{ width: 150 }} />
+                  <SortableHeaderCell label="PRODUCT" active={sortKey === "product_name"} direction={sortDir} onPress={() => toggleSort("product_name")} textStyle={styles.columnHeader} containerStyle={{ width: 200 }} />
+                  <SortableHeaderCell label="TYPE" active={sortKey === "transaction_type"} direction={sortDir} onPress={() => toggleSort("transaction_type")} textStyle={styles.columnHeader} containerStyle={{ width: 70 }} />
+                  <SortableHeaderCell label="QTY" active={sortKey === "quantity"} direction={sortDir} onPress={() => toggleSort("quantity")} textStyle={styles.columnHeader} containerStyle={{ width: 100 }} />
+                  <SortableHeaderCell label="DEPARTMENT" active={sortKey === "department_name"} direction={sortDir} onPress={() => toggleSort("department_name")} textStyle={styles.columnHeader} containerStyle={{ width: 130 }} />
+                  <SortableHeaderCell label="REASON" active={sortKey === "reason"} direction={sortDir} onPress={() => toggleSort("reason")} textStyle={styles.columnHeader} containerStyle={{ width: 200 }} />
+                  <SortableHeaderCell label="REFERENCE" active={sortKey === "reference"} direction={sortDir} onPress={() => toggleSort("reference")} textStyle={styles.columnHeader} containerStyle={{ width: 140 }} />
+                  <SortableHeaderCell label="BY" active={sortKey === "created_by"} direction={sortDir} onPress={() => toggleSort("created_by")} textStyle={styles.columnHeader} containerStyle={{ flex: 1, minWidth: 110 }} />
                 </View>
 
                 {pagination.pageRows.map((tx) => (
-                  <View key={tx.id || Math.random()} style={styles.tableRow}>
-                    <Text style={[styles.cellText, { width: 130, fontWeight: "600" }]}>{tx.challan_number || "-"}</Text>
-                    <Text style={[styles.cellText, { width: 180 }]}>{tx.product_name || "-"}</Text>
-                    <View style={{ width: 90 }}>
+                  <View key={tx.id} style={styles.tableRow}>
+                    <Text style={[styles.cellText, { width: 150, color: "#6B7280" }]}>
+                      {tx.created_at ? new Date(tx.created_at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) : "-"}
+                    </Text>
+                    <View style={{ width: 200, paddingRight: 8 }}>
+                      <Text style={[styles.cellText, { fontWeight: "600" }]} numberOfLines={1}>{tx.product_name || "-"}</Text>
+                      {!!tx.item_code && <Text style={[styles.cellText, { fontSize: 12, color: "#9CA3AF" }]}>{tx.item_code}</Text>}
+                    </View>
+                    <View style={{ width: 70 }}>
                       <View style={[styles.typeBadge, { backgroundColor: tx.transaction_type === "IN" ? "#DEF7EC" : "#FDE8E8" }]}>
                         <Text style={[styles.typeBadgeText, { color: tx.transaction_type === "IN" ? "#03543F" : "#9B1C1C" }]}>
                           {tx.transaction_type}
                         </Text>
                       </View>
                     </View>
-                    <Text style={[styles.cellText, { width: 80, fontWeight: "700" }]}>{tx.quantity}</Text>
-                    <Text style={[styles.cellText, { width: 150 }]}>{tx.department_name || "-"}</Text>
-                    <Text style={[styles.cellText, { flex: 1, minWidth: 110, color: "#6B7280" }]}>
-                      {tx.created_at ? new Date(tx.created_at).toLocaleDateString() : "-"}
+                    <Text style={[styles.cellText, { width: 100, fontWeight: "700", color: tx.transaction_type === "IN" ? "#03543F" : "#9B1C1C" }]}>
+                      {tx.transaction_type === "IN" ? "+" : "−"}{tx.quantity} {tx.unit_of_measure || ""}
                     </Text>
+                    <Text style={[styles.cellText, { width: 130 }]}>{tx.department_name || "-"}</Text>
+                    <Text style={[styles.cellText, { width: 200, paddingRight: 8 }]} numberOfLines={2}>{tx.reason || "-"}</Text>
+                    <Text style={[styles.cellText, { width: 140 }]} numberOfLines={1}>{tx.reference || "-"}</Text>
+                    <Text style={[styles.cellText, { flex: 1, minWidth: 110, color: "#6B7280" }]} numberOfLines={1}>{tx.created_by || "-"}</Text>
                   </View>
                 ))}
               </View>
@@ -272,7 +286,7 @@ const styles = StyleSheet.create({
 
   // Table Card & Empty State
   tableWrapper: { width: "100%" },
-  tableCard: { minWidth: 800, flex: 1, backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 2, minHeight: 300, overflow: "hidden" },
+  tableCard: { minWidth: 1150, flex: 1, backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 2, minHeight: 300, overflow: "hidden" },
   emptyState: { flex: 1, justifyContent: "center", alignItems: "center", paddingVertical: 100 },
   emptyStateText: { fontSize: 15, color: "#6B7280" },
 
