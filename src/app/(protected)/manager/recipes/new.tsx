@@ -251,6 +251,8 @@ export default function RecipeBuilderPage() {
     }
   };
 
+  const buildsInWhiteBlockedDept = !!departments.find((d: any) => d.id === fgDepartment)?.blocks_white_parts;
+
   const isFinalDept = (d: any) => finalRank !== null && d.level === finalRank;
   const finalDeptIds = new Set(departments.filter(isFinalDept).map((d: any) => d.id));
   // "What are you building" — finished-goods department(s) first.
@@ -306,6 +308,11 @@ export default function RecipeBuilderPage() {
               />
             </View>
           </View>
+          {buildsInWhiteBlockedDept && (
+            <Text style={styles.helperText}>
+              This is the Colour department — White moulded parts are hidden from the part list, only Grey or Black can be used.
+            </Text>
+          )}
           {finishedGoods.length === 0 && (
             <Text style={styles.helperText}>
               No items yet — add one under Items & QR first.
@@ -333,7 +340,10 @@ export default function RecipeBuilderPage() {
               // row loaded from an older recipe whose part has no department
               // still shows that one part so it doesn't appear blank.)
               const filteredMaterials = comp.department
-                ? rawMaterials.filter((rm: any) => rm.department_id === comp.department && !finalDeptIds.has(rm.department_id))
+                ? rawMaterials.filter((rm: any) =>
+                    rm.department_id === comp.department && !finalDeptIds.has(rm.department_id)
+                    // Colour department: only Grey/Black parts can be coloured.
+                    && !(buildsInWhiteBlockedDept && rm.powder_colour === "White"))
                 : rawMaterials.filter((rm: any) => rm.id === comp.itemId);
 
               return (

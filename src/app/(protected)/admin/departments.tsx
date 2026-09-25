@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, ScrollView, Switch } from "react-native";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
 import { usePagination } from "@/utils/usePagination";
@@ -8,7 +8,7 @@ import Alert from "@/utils/alert";
 import { Feather } from "@expo/vector-icons";
 import api from "@/services/api";
 
-interface Department { id: string; name: string; department_code: number; level: number; }
+interface Department { id: string; name: string; department_code: number; level: number; blocks_white_parts?: boolean; }
 interface Level { id: number; name: string; rank: number; is_final: boolean; }
 
 export default function DepartmentsManagementScreen() {
@@ -21,6 +21,8 @@ export default function DepartmentsManagementScreen() {
   // Add/Edit Department Modal State
   const [isModalVisible, setModalVisible] = useState(false);
   const [editingDept, setEditingDept] = useState<Department | null>(null);
+  // The Colour department: White moulded parts can never be sent here.
+  const [blocksWhite, setBlocksWhite] = useState(false);
   const [newName, setNewName] = useState("");
   const [newCode, setNewCode] = useState("");
   const [selectedLevel, setSelectedLevel] = useState<number>(0);
@@ -66,6 +68,7 @@ export default function DepartmentsManagementScreen() {
     setNewName("");
     setNewCode("");
     setSelectedLevel(levels[0]?.rank ?? 0);
+    setBlocksWhite(false);
     setModalVisible(true);
   };
 
@@ -74,6 +77,7 @@ export default function DepartmentsManagementScreen() {
     setNewName(dept.name);
     setNewCode(String(dept.department_code ?? ""));
     setSelectedLevel(dept.level);
+    setBlocksWhite(!!dept.blocks_white_parts);
     setModalVisible(true);
   };
 
@@ -89,6 +93,7 @@ export default function DepartmentsManagementScreen() {
       const payload: any = {
         name: newName.trim(),
         department_level: selectedLevel,
+        blocks_white_parts: blocksWhite,
       };
       if (newCode.trim() !== "") {
         payload.department_code = parseInt(newCode, 10);
@@ -234,7 +239,10 @@ export default function DepartmentsManagementScreen() {
               </View>
               <View>
                 <Text style={styles.name}>{item.name}</Text>
-                <Text style={styles.subtext}>Code: {item.department_code}  •  Level: {getLevelName(item.level)}</Text>
+                <Text style={styles.subtext}>
+                  Code: {item.department_code}  •  Level: {getLevelName(item.level)}
+                  {item.blocks_white_parts ? "  •  Grey/Black parts only" : ""}
+                </Text>
               </View>
             </Pressable>
             <View style={styles.cardActions}>
@@ -309,6 +317,14 @@ export default function DepartmentsManagementScreen() {
               {levels.length === 0 && (
                 <Text style={styles.helperText}>No levels configured — tap "Manage Levels" first.</Text>
               )}
+            </View>
+
+            <View style={[styles.inputGroup, { flexDirection: "row", alignItems: "center", gap: 12 }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inputLabel}>Colour department (Grey/Black parts only)</Text>
+                <Text style={styles.helperText}>White moulded parts can never be sent here or used in this department's recipes.</Text>
+              </View>
+              <Switch value={blocksWhite} onValueChange={setBlocksWhite} trackColor={{ false: "#E5E7EB", true: "#8B5CF6" }} />
             </View>
 
             <Pressable

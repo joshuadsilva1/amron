@@ -591,7 +591,7 @@ export default function ItemsPage() {
 
               <View style={styles.formRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.inputLabel}>Powder colour (moulded parts only)</Text>
+                  <Text style={styles.inputLabel}>Powder colour</Text>
                   <View style={{ flexDirection: "row", gap: 8, marginTop: 4 }}>
                     {["", "White", "Grey", "Black"].map((c) => {
                       const active = form.powder_colour === c;
@@ -609,7 +609,8 @@ export default function ItemsPage() {
                     })}
                   </View>
                   <Text style={styles.helperTextSmall}>
-                    Only Black/Grey moulded parts can be routed to the Colour department — White never can.
+                    Set this on your powders. A moulded part picks up its powder's colour automatically when you save its recipe.
+                    White parts can never go to the Colour department — only Grey or Black.
                   </Text>
                 </View>
               </View>
