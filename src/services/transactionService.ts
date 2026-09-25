@@ -6,6 +6,8 @@ export interface BinDetails {
   item_name: string;
   item_code: string;
   category: string;
+  // Only finished goods can be dispatched to a client.
+  is_finished_good?: boolean;
   quantity: number;
   unit_of_measure: string;
   current_department: string;

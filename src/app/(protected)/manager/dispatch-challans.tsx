@@ -92,7 +92,8 @@ export default function DispatchChallansPage() {
 
       setClients(clientsData);
       setPurchaseOrders(posData);
-      setItemsList(itemsData);
+      // Only finished goods are dispatched to a client.
+      setItemsList(itemsData.filter((i: any) => i.is_finished_good));
 
       // Filter challans into tabs based on status
       setPendingChallans(challansData.filter((c: any) => c.status === "Pending"));

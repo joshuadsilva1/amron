@@ -49,7 +49,12 @@ export default function DispatchScreen() {
       const binData = await TransactionService.getBinDetails(code);
 
       // Dispatch Safety Net: Cannot ship unverified items
-      if (binData.qc_status !== "Passed") {
+      if (binData.is_finished_good === false) {
+        Alert.alert(
+          "Not a finished good",
+          `Bin ${code} holds ${binData.item_code} — ${binData.item_name} (${binData.current_department}). Only finished goods can be dispatched to a client.`
+        );
+      } else if (binData.qc_status !== "Passed") {
         Alert.alert("Dispatch Blocked", `Bin ${code} has QC Status: ${binData.qc_status}`);
       } else {
         setScannedBins((prev) => [...prev, binData]);
