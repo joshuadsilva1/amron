@@ -410,8 +410,8 @@ export default function ScanInOutPage() {
                   <TextInput 
                     style={styles.textInput}
                     value={quantity}
-                    onChangeText={setQuantity}
-                    keyboardType="number-pad"
+                    onChangeText={(t) => setQuantity(t.replace(/[^0-9.]/g, ""))}
+                    keyboardType="decimal-pad"
                   />
                 </View>
                 <View style={{ flex: 1 }}>
