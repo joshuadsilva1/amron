@@ -10,7 +10,7 @@ import { useLocalSearchParams } from "expo-router"; // <-- Import this to read t
 
 import colors from "@/theme/colors";
 import spacing from "@/theme/spacing";
-import SupplierOrderService from "@/services/supplierService";
+import SupplierOrderService, { OrderableItem, MaterialToSend } from "@/services/supplierService";
 import { exportToExcel, exportToPDF } from "@/utils/export";
 import useAuthStore from "@/store/authStore";
 
@@ -71,20 +71,25 @@ export default function DepartmentSupplierOrdersPage() {
   
   // Data from Backend
   const [departmentName, setDepartmentName] = useState("Loading...");
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<OrderableItem[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const search = useSearch(orders);
   const pagination = usePagination(search.filtered);
 
-  // Unit Options
-  const unitOptions = [{ id: "pcs", name: "pcs" }, { id: "kg", name: "kg" }, { id: "boxes", name: "boxes" }];
+  // Dropdown rows: "M-001 — Switch cap" + what ordering it means.
+  const itemOptions = items.map((i) => ({
+    id: i.id,
+    name: `${i.item_code} — ${i.name}${i.kind === "job_work" ? "  ·  made by supplier, you send material" : ""}`,
+  }));
+  const itemById = (id: string) => items.find((i) => i.id === id);
+  const owedItems = items.filter((i) => i.owed_on_internal_pos > 0);
 
   // --- Single Order State ---
   const [singleItem, setSingleItem] = useState("");
   const [singleSupplier, setSingleSupplier] = useState("");
   const [singleQty, setSingleQty] = useState("");
-  const [singleUnit, setSingleUnit] = useState("pcs");
+  const [singleMaterials, setSingleMaterials] = useState<MaterialToSend[]>([]);
   const [singleUrgent, setSingleUrgent] = useState(false);
   const [singleNotes, setSingleNotes] = useState("");
 
@@ -92,7 +97,6 @@ export default function DepartmentSupplierOrdersPage() {
   const [clubSupplier, setClubSupplier] = useState("");
   const [clubItem, setClubItem] = useState("");
   const [clubQty, setClubQty] = useState("");
-  const [clubUnit, setClubUnit] = useState("pcs");
   const [clubUrgent, setClubUrgent] = useState(false);
   const [clubNotes, setClubNotes] = useState("");
   const [clubItemsList, setClubItemsList] = useState<any[]>([]);
@@ -106,6 +110,20 @@ export default function DepartmentSupplierOrdersPage() {
       fetchData();
     }
   }, [deptId]);
+
+  // Job work: live "send the supplier X kg powder" as the qty is typed.
+  useEffect(() => {
+    const qty = parseFloat(singleQty);
+    if (!singleItem || itemById(singleItem)?.kind !== "job_work" || !(qty > 0)) {
+      setSingleMaterials([]);
+      return;
+    }
+    const t = setTimeout(() => {
+      SupplierOrderService.previewMaterials(singleItem, qty).then(setSingleMaterials).catch(() => setSingleMaterials([]));
+    }, 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [singleItem, singleQty, items]);
 
   const handleOrderStatus = async (orderId: string, status: "Approved" | "Rejected") => {
     try {
@@ -124,7 +142,7 @@ export default function DepartmentSupplierOrdersPage() {
       setLoading(true);
       const [suppliersData, itemsData, deptsData, ordersData] = await Promise.all([
         SupplierOrderService.getSuppliers().catch(() => []),
-        SupplierOrderService.getItems().catch(() => []), 
+        SupplierOrderService.getOrderableItems(String(deptId)).catch(() => []),
         SupplierOrderService.getDepartments().catch(() => []),
         SupplierOrderService.getOrders().catch(() => [])
       ]);
@@ -162,12 +180,12 @@ export default function DepartmentSupplierOrdersPage() {
       
       await SupplierOrderService.placeOrder({
         supplier_id: singleSupplier,
-        department_id: deptId, // Strictly locked to URL ID
+        department_id: String(deptId), // Strictly locked to URL ID
         notes: singleNotes,
         is_urgent: singleUrgent ? 1 : 0,
         items: [{
           product_id: singleItem,
-          ordered_qty: parseInt(singleQty, 10)
+          ordered_qty: parseFloat(singleQty)
         }]
       });
       
@@ -185,13 +203,13 @@ export default function DepartmentSupplierOrdersPage() {
   const handleAddClubItem = () => {
     if (!clubItem || !clubQty) return;
     
-    const itemData: any = items.find((i: any) => i.id === clubItem);
+    const itemData = itemById(clubItem);
     
     setClubItemsList([...clubItemsList, { 
       product_id: clubItem, 
-      product_name: itemData?.name || "Item", 
-      ordered_qty: parseInt(clubQty, 10), 
-      unit: clubUnit, 
+      product_name: itemData ? `${itemData.item_code} — ${itemData.name}` : "Item",
+      ordered_qty: parseFloat(clubQty),
+      unit: itemData?.unit_of_measure || "",
       is_urgent: clubUrgent 
     }]);
     
@@ -210,7 +228,7 @@ export default function DepartmentSupplierOrdersPage() {
 
       await SupplierOrderService.placeOrder({
         supplier_id: clubSupplier,
-        department_id: deptId, // Strictly locked to URL ID
+        department_id: String(deptId), // Strictly locked to URL ID
         notes: clubNotes,
         is_urgent: hasUrgentItem ? 1 : 0,
         items: clubItemsList.map((i: any) => ({
@@ -295,18 +313,52 @@ export default function DepartmentSupplierOrdersPage() {
               </View>
             </View>
 
-            <SelectInput label="Item" placeholder="Select item..." value={singleItem} options={items} onSelect={setSingleItem} />
+            {owedItems.length > 0 && (
+              <View style={styles.owedBox}>
+                <Text style={styles.owedTitle}>Still needed for open orders — tap to fill in</Text>
+                {owedItems.map((i) => (
+                  <Pressable
+                    key={i.id}
+                    style={styles.owedChip}
+                    onPress={() => { setSingleItem(i.id); setSingleQty(String(i.owed_on_internal_pos)); }}
+                  >
+                    <Text style={styles.owedChipText}>{i.item_code} — {i.name}</Text>
+                    <Text style={styles.owedChipQty}>{i.owed_on_internal_pos} {i.unit_of_measure}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
+
+            <SelectInput label="Item" placeholder="Select item..." value={singleItem} options={itemOptions} onSelect={setSingleItem} />
+            {items.length === 0 && !loading && (
+              <Text style={styles.hintText}>Nothing to order for {departmentName} yet — add its parts under Items & QR and give them recipes.</Text>
+            )}
             <SelectInput label="Supplier" placeholder="Assign supplier..." value={singleSupplier} options={suppliers} onSelect={setSingleSupplier} />
             
             <View style={styles.row}>
               <View style={[styles.inputGroup, { flex: 1 }]}>
                 <Text style={styles.label}>Quantity</Text>
-                <TextInput style={styles.textInputBox} value={singleQty} onChangeText={setSingleQty} keyboardType="numeric" />
-              </View>
-              <View style={[styles.inputGroup, { flex: 1, marginLeft: spacing.md }]}>
-                <SelectInput label="Unit" placeholder="pcs" value={singleUnit} options={unitOptions} onSelect={setSingleUnit} />
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <TextInput style={[styles.textInputBox, { flex: 1 }]} value={singleQty} onChangeText={(t) => setSingleQty(t.replace(/[^0-9.]/g, ""))} keyboardType="decimal-pad" />
+                  <Text style={styles.unitLabel}>{itemById(singleItem)?.unit_of_measure || ""}</Text>
+                </View>
               </View>
             </View>
+
+            {singleMaterials.length > 0 && (
+              <View style={styles.sendBox}>
+                <Text style={styles.sendTitle}>
+                  <Feather name="arrow-up-right" size={13} color="#1D4ED8" /> You need to send {suppliers.find((x: any) => x.id === singleSupplier)?.name || "the supplier"}:
+                </Text>
+                {singleMaterials.map((m) => (
+                  <Text key={m.product_id} style={styles.sendLine}>
+                    • {m.quantity} {m.unit_of_measure} {m.name}
+                    <Text style={styles.sendSub}>  ({m.per_unit} per piece{m.wastage_percent ? ` + ${m.wastage_percent}% wastage` : ""})</Text>
+                  </Text>
+                ))}
+                <Text style={styles.sendSub}>Worked out from the recipe. Saved on the order so you can see it later.</Text>
+              </View>
+            )}
 
             <CustomCheckbox label="Mark URGENT" checked={singleUrgent} onChange={setSingleUrgent} />
 
@@ -347,15 +399,12 @@ export default function DepartmentSupplierOrdersPage() {
 
             <View style={styles.innerCard}>
               <Text style={styles.innerCardTitle}>Add item to club</Text>
-              <SelectInput placeholder="Select item..." value={clubItem} options={items} onSelect={setClubItem} />
+              <SelectInput placeholder="Select item..." value={clubItem} options={itemOptions} onSelect={setClubItem} />
               
               <View style={styles.row}>
-                <View style={{ flex: 1 }}>
-                  <TextInput style={styles.textInputBox} placeholder="Qty" value={clubQty} onChangeText={setClubQty} keyboardType="numeric" />
-                </View>
-                <View style={{ width: spacing.md }} />
-                <View style={{ flex: 1 }}>
-                  <SelectInput placeholder="pcs" value={clubUnit} options={unitOptions} onSelect={setClubUnit} />
+                <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <TextInput style={[styles.textInputBox, { flex: 1 }]} placeholder="Qty" value={clubQty} onChangeText={(t) => setClubQty(t.replace(/[^0-9.]/g, ""))} keyboardType="decimal-pad" />
+                  <Text style={styles.unitLabel}>{itemById(clubItem)?.unit_of_measure || ""}</Text>
                 </View>
               </View>
 
@@ -421,7 +470,17 @@ export default function DepartmentSupplierOrdersPage() {
                       Order #{String(o.id).substring(0,6).toUpperCase()}
                       {o.is_urgent === 1 && <Text style={{ color: "#EF4444", fontSize: 12 }}> URGENT</Text>}
                     </Text>
-                    <Text style={styles.orderSupplier}>{o.supplier_name} • {o.items?.length || 0} items</Text>
+                    <Text style={styles.orderSupplier}>{o.supplier_name}</Text>
+                    {(o.items || []).map((it: any, idx: number) => (
+                      <Text key={idx} style={styles.orderLine}>
+                        {it.item_code ? `${it.item_code} — ` : ""}{it.product_name}: {it.ordered_qty} {it.unit_of_measure || ""}
+                      </Text>
+                    ))}
+                    {(o.materials_to_send || []).length > 0 && (
+                      <Text style={styles.orderSend}>
+                        Send supplier: {o.materials_to_send.map((m: any) => `${m.quantity} ${m.unit_of_measure || ""} ${m.name}`).join(", ")}
+                      </Text>
+                    )}
                   </View>
 
                   {canApprove && o.status === "Pending" ? (
@@ -515,6 +574,19 @@ const styles = StyleSheet.create({
   secondaryBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", backgroundColor: "#F3F4F6", paddingVertical: 10, borderRadius: 8, marginTop: spacing.sm, borderWidth: 1, borderColor: "#E5E7EB" },
   secondaryBtnText: { color: "#374151", fontSize: 14, fontWeight: "600" },
   
+  hintText: { fontSize: 12, color: "#9CA3AF", marginTop: -8, marginBottom: 12 },
+  unitLabel: { fontSize: 14, fontWeight: "700", color: "#6B7280", minWidth: 28 },
+  owedBox: { backgroundColor: "#F5F3FF", borderWidth: 1, borderColor: "#DDD6FE", borderRadius: 10, padding: 10, marginBottom: spacing.md, gap: 6 },
+  owedTitle: { fontSize: 12, fontWeight: "700", color: "#5B21B6" },
+  owedChip: { flexDirection: "row", justifyContent: "space-between", backgroundColor: colors.white, borderRadius: 8, paddingVertical: 8, paddingHorizontal: 10, borderWidth: 1, borderColor: "#E9D5FF" },
+  owedChipText: { fontSize: 13, color: "#374151", flex: 1 },
+  owedChipQty: { fontSize: 13, fontWeight: "700", color: "#5B21B6" },
+  sendBox: { backgroundColor: "#EFF6FF", borderWidth: 1, borderColor: "#BFDBFE", borderRadius: 10, padding: 12, marginBottom: spacing.md, gap: 4 },
+  sendTitle: { fontSize: 13, fontWeight: "700", color: "#1D4ED8" },
+  sendLine: { fontSize: 14, fontWeight: "700", color: "#1E3A8A" },
+  sendSub: { fontSize: 12, fontWeight: "400", color: "#6B7280" },
+  orderLine: { fontSize: 13, color: "#374151", marginTop: 2 },
+  orderSend: { fontSize: 12, fontWeight: "600", color: "#1D4ED8", marginTop: 4 },
   clubItemBadge: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: "#F3F4F6", padding: 10, borderRadius: 8, marginBottom: 8, borderWidth: 1, borderColor: "#E5E7EB" },
   clubItemText: { fontSize: 13, fontWeight: "500", color: "#374151" },
   

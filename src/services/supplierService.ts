@@ -12,6 +12,30 @@ export interface SupplierOrderPayload {
   }[];
 }
 
+// What a department can order from a supplier (never finished goods).
+// job_work = a part this department makes, made by the supplier instead
+// — we send them its recipe's materials. purchase = a raw material.
+export interface OrderableItem {
+  id: string;
+  item_code: string;
+  name: string;
+  unit_of_measure: string;
+  department_id: string;
+  kind: "job_work" | "purchase";
+  // Still owed on this department's open internal POs.
+  owed_on_internal_pos: number;
+}
+
+export interface MaterialToSend {
+  product_id: string;
+  item_code: string | null;
+  name: string;
+  unit_of_measure: string | null;
+  quantity: number;
+  per_unit?: number;
+  wastage_percent?: number;
+}
+
 export interface Supplier {
   id: string;
   name: string;
@@ -60,6 +84,17 @@ export default class SupplierOrderService {
   }
 
   // Place a new order (Handles both Single and Club based on the items array length)
+  static async getOrderableItems(departmentId: string): Promise<OrderableItem[]> {
+    const response = await api.get("/suppliers/orderable-items", { params: { department_id: departmentId } });
+    return response.data.data;
+  }
+
+  // Job work: materials to send the supplier to make `quantity` of this item.
+  static async previewMaterials(productId: string, quantity: number): Promise<MaterialToSend[]> {
+    const response = await api.get("/suppliers/materials-preview", { params: { product_id: productId, quantity } });
+    return response.data.data;
+  }
+
   static async placeOrder(payload: SupplierOrderPayload) {
     const response = await api.post("/suppliers/orders", payload);
     return response.data;
