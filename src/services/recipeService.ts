@@ -62,7 +62,9 @@ export default class RecipeService {
       ingredients: payload.ingredients,
       notes: payload.notes,
     });
-    return response.data as { status: string; message: string; version: number };
+    // unsent_po_ids: open customer POs for this item that never went to
+    // departments (usually because it had no recipe yet).
+    return response.data as { status: string; message: string; version: number; unsent_po_ids: string[] };
   }
 
   static async getRecipes(): Promise<RecipeSummary[]> {

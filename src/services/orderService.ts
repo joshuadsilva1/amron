@@ -28,8 +28,13 @@ export interface OrderLineItem {
   dispatched_qty: number;
 }
 
+// A line is either an existing client-code mapping, or one of our
+// finished goods picked directly — the backend remembers the client's
+// code for it the first time (no separate OEM-mapping step).
 export interface POItemPayload {
-  mapping_id: string;
+  mapping_id?: string;
+  product_id?: string;
+  client_product_code?: string;
   quantity: number;
 }
 
@@ -40,6 +45,15 @@ export interface CreatePOPayload {
   due_date?: string;
   challan_number?: string;
   items: POItemPayload[];
+  // Raise the internal department POs in the same step.
+  send_to_departments?: boolean;
+}
+
+export interface CreatePOResult {
+  status: string;
+  po_id: string;
+  // null when send_to_departments wasn't asked for.
+  send_result: { ok: boolean; changed: boolean; message: string } | null;
 }
 
 export default class OrderService {
@@ -54,9 +68,9 @@ export default class OrderService {
     return response.data.clubbed_orders;
   }
 
-  static async createPO(payload: CreatePOPayload) {
+  static async createPO(payload: CreatePOPayload): Promise<CreatePOResult> {
     // TWEAK: Removed the trailing slash here so it matches the Flask strict_slashes rules
-    const response = await api.post("/orders", payload);
+    const response = await api.post<CreatePOResult>("/orders", payload);
     return response.data;
   }
 

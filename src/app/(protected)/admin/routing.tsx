@@ -133,11 +133,8 @@ export default function RoutingEditorScreen() {
       setSelectedNode(null);
       return;
     }
-    if (levelDiff > 1) {
-      Alert.alert("Invalid Route", "Cannot jump layers.");
-      setSelectedNode(null);
-      return;
-    }
+    // Skipping a layer is allowed (e.g. Moulding straight to Dispatch
+    // when a part needs no Laser/Colour step) — only backwards is blocked.
     
     const exists = connections.find(c => c.fromId === selectedNode.id && c.toId === dept.id);
     if (exists) {

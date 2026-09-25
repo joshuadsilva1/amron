@@ -15,6 +15,8 @@ import { useSortable } from "@/utils/useSortable";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
+import Pagination from "@/components/common/Pagination";
+import { usePagination } from "@/utils/usePagination";
 
 // --- Reusable Dropdown Component ---
 const SelectInput = ({ placeholder, value, options, onSelect }: any) => {
@@ -89,6 +91,10 @@ export default function OEMConversionPage() {
   const clientOrdersSort = useSortable<OrderLineItem>(clientSearch.filtered);
   const aggregatedSort = useSortable<ClubbedOrder>(aggregatedSearch.filtered);
   const mappingsSort = useSortable<OEMMapping>(mappingsSearch.filtered);
+  const clientPage = usePagination(clientOrdersSort.sorted);
+  const aggregatedPage = usePagination(aggregatedSort.sorted);
+  const mappingsPage = usePagination(mappingsSort.sorted);
+  const activePage = activeTab === "client_wise" ? clientPage : activeTab === "aggregated" ? aggregatedPage : mappingsPage;
   const activeSearch = activeTab === "client_wise" ? clientSearch : activeTab === "aggregated" ? aggregatedSearch : mappingsSearch;
   const activeTotal = activeTab === "client_wise" ? clientOrders.length : activeTab === "aggregated" ? aggregatedOrders.length : mappings.length;
 
@@ -207,8 +213,8 @@ export default function OEMConversionPage() {
           <View style={styles.headerTextContainer}>
             <Text style={styles.title}>Party Products (OEM)</Text>
             <Text style={styles.subtitle}>
-              Every client PO's OEM code is resolved to your internal manufacturing code automatically —
-              view it client-wise or aggregated across all clients.
+              Customer orders, shown with the client's own product codes — client-wise or totalled per
+              product. Client codes are remembered automatically the first time a client orders a product.
             </Text>
           </View>
           <View style={styles.headerActions}>
@@ -246,13 +252,13 @@ export default function OEMConversionPage() {
             onPress={() => setActiveTab("mappings")}
           >
             <Feather name="link" size={16} color={activeTab === "mappings" ? colors.white : "#6B7280"} style={{ marginRight: 8 }} />
-            <Text style={[styles.tabText, activeTab === "mappings" && styles.tabTextActive]}>OEM Mappings</Text>
+            <Text style={[styles.tabText, activeTab === "mappings" && styles.tabTextActive]}>Client product codes</Text>
           </Pressable>
 
           {activeTab === "mappings" && (
             <Pressable style={styles.addMappingBtn} onPress={openAddMappingModal}>
               <Feather name="plus" size={14} color={colors.white} style={{ marginRight: 6 }} />
-              <Text style={styles.newPoBtnText}>Add Mapping</Text>
+              <Text style={styles.newPoBtnText}>Add code</Text>
             </Pressable>
           )}
         </View>
@@ -260,7 +266,7 @@ export default function OEMConversionPage() {
         <SearchBar
           value={activeSearch.query}
           onChangeText={activeSearch.setQuery}
-          placeholder={activeTab === "mappings" ? "Search mappings by client, code, product..." : "Search by client, product, code, status..."}
+          placeholder={activeTab === "mappings" ? "Search client codes by client, code, product..." : "Search by client, product, code, status..."}
           resultCount={activeSearch.filtered.length}
           totalCount={activeTotal}
         />
@@ -286,7 +292,7 @@ export default function OEMConversionPage() {
                   <Text style={styles.emptyText}>No client POs found.</Text>
                 </View>
               ) : (
-                clientOrdersSort.sorted.map((po) => {
+                clientPage.pageRows.map((po) => {
                   const statusStyle = STATUS_COLORS[po.status] || STATUS_COLORS.Received;
                   return (
                     <View key={po.line_item_id} style={styles.tableRow}>
@@ -346,7 +352,7 @@ export default function OEMConversionPage() {
                   <Text style={styles.emptyText}>No pending orders to aggregate.</Text>
                 </View>
               ) : (
-                aggregatedSort.sorted.map((agg, idx) => (
+                aggregatedPage.pageRows.map((agg, idx) => (
                   <View key={idx} style={styles.tableRow}>
                     <View style={{ width: 130 }}>
                       <Text style={[styles.cellTitle, { color: "#8B5CF6", fontWeight: "700" }]}>
@@ -385,10 +391,10 @@ export default function OEMConversionPage() {
 
               {mappings.length === 0 ? (
                 <View style={styles.emptyContainer}>
-                  <Text style={styles.emptyText}>No OEM mappings yet. Tap "Add Mapping" to create one.</Text>
+                  <Text style={styles.emptyText}>No client codes yet. They're added automatically when you enter a New PO — or tap "Add code" to set one up in advance (e.g. with packaging details).</Text>
                 </View>
               ) : (
-                mappingsSort.sorted.map((m) => (
+                mappingsPage.pageRows.map((m) => (
                   <View key={m.id} style={styles.tableRow}>
                     <View style={{ width: 180 }}>
                       <Text style={styles.cellTitle}>{m.party_name}</Text>
@@ -412,6 +418,7 @@ export default function OEMConversionPage() {
             </View>
             </ScrollView>
           )}
+          {!loading && <Pagination {...activePage} style={{ paddingHorizontal: 16 }} />}
         </View>
 
       </ScrollView>
@@ -421,7 +428,7 @@ export default function OEMConversionPage() {
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Add OEM Mapping</Text>
+              <Text style={styles.modalTitle}>Add client product code</Text>
               <Pressable onPress={() => setModalVisible(false)} style={styles.closeIcon}>
                 <Feather name="x" size={24} color="#111111" />
               </Pressable>
@@ -443,8 +450,13 @@ export default function OEMConversionPage() {
               <SelectInput
                 placeholder="Select internal product..."
                 value={mapProductId}
-                options={masterItems.map((i) => ({ id: i.id, name: `${i.name} (${i.item_code})` }))}
-                onSelect={setMapProductId}
+                options={masterItems.filter((i) => i.is_finished_good).map((i) => ({ id: i.id, name: `${i.name} (${i.item_code})` }))}
+                onSelect={(id: string) => {
+                  setMapProductId(id);
+                  // Start from the client code typed on the item itself.
+                  const item = masterItems.find((i) => i.id === id);
+                  if (item?.oem_company_code && !mapPartyCode.trim()) setMapPartyCode(item.oem_company_code);
+                }}
               />
 
               <Text style={styles.inputLabel}>Client's Product Code*</Text>
@@ -492,7 +504,7 @@ export default function OEMConversionPage() {
                 {isSubmittingMapping ? (
                   <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.submitButtonText}>Create Mapping</Text>
+                  <Text style={styles.submitButtonText}>Save code</Text>
                 )}
               </Pressable>
             </ScrollView>

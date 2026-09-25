@@ -10,8 +10,9 @@ import { useSortable } from "@/utils/useSortable";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
-
-const UNIT_OPTIONS = ["pcs", "kg", "boxes", "meters"];
+import Pagination from "@/components/common/Pagination";
+import { usePagination } from "@/utils/usePagination";
+import ItemService, { UnitOfMeasure } from "@/services/itemService";
 
 const SelectInput = ({ label, placeholder, value, options, onSelect }: any) => {
   const [modalVisible, setModalVisible] = useState(false);
@@ -53,45 +54,92 @@ const SelectInput = ({ label, placeholder, value, options, onSelect }: any) => {
   );
 };
 
-const ComboInput = ({ label, placeholder, value, options, onChangeText }: any) => {
+// Unit dropdown backed by the Units list (Items -> Units), with an inline
+// "add a unit" row so a new unit never needs a code change.
+const UnitSelect = ({ label, value, units, onSelect, onUnitsChanged }: {
+  label: string;
+  value: string;
+  units: UnitOfMeasure[];
+  onSelect: (name: string) => void;
+  onUnitsChanged: () => Promise<void>;
+}) => {
   const [modalVisible, setModalVisible] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const addUnit = async () => {
+    const name = newName.trim();
+    if (!name) return;
+    try {
+      setSaving(true);
+      await ItemService.createUnit(name, newDescription.trim() || undefined);
+      await onUnitsChanged();
+      onSelect(name);
+      setNewName("");
+      setNewDescription("");
+      setModalVisible(false);
+    } catch (error: any) {
+      Alert.alert("Error", error.response?.data?.error || "Failed to add unit.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removeUnit = async (unit: UnitOfMeasure) => {
+    try {
+      await ItemService.deleteUnit(unit.id);
+      await onUnitsChanged();
+    } catch (error: any) {
+      Alert.alert("Can't remove unit", error.response?.data?.error || "Failed to remove unit.");
+    }
+  };
 
   return (
     <View style={styles.inputGroup}>
-      {label && <Text style={styles.inputLabel}>{label}</Text>}
-      <View style={styles.comboInputBox}>
-        <TextInput
-          style={styles.comboTextInput}
-          placeholder={placeholder}
-          value={value}
-          onChangeText={onChangeText}
-          placeholderTextColor="#9CA3AF"
-        />
-        <Pressable onPress={() => setModalVisible(true)} style={styles.comboIconBtn}>
-          <Feather name="chevron-down" size={16} color="#9CA3AF" />
-        </Pressable>
-      </View>
+      <Text style={styles.inputLabel}>{label}</Text>
+      <Pressable style={styles.selectInputBox} onPress={() => setModalVisible(true)}>
+        <Text style={[styles.inputText, !value && { color: "#9CA3AF" }]} numberOfLines={1}>{value || "Select unit"}</Text>
+        <Feather name="chevron-down" size={16} color="#9CA3AF" />
+      </Pressable>
 
-      <Modal visible={modalVisible} transparent animationType="fade">
+      <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={() => setModalVisible(false)}>
         <Pressable style={styles.dropdownOverlay} onPress={() => setModalVisible(false)}>
-          <View style={styles.dropdownModal}>
-            <Text style={styles.dropdownTitle}>{placeholder}</Text>
+          <Pressable style={[styles.dropdownModal, { maxWidth: 380, maxHeight: "80%" }]} onPress={() => {}}>
+            <Text style={styles.dropdownTitle}>Unit of measure</Text>
             <FlatList
-              data={options}
-              keyExtractor={(item) => item}
-              renderItem={({ item }) => (
-                <Pressable 
+              data={units}
+              keyExtractor={(u) => String(u.id)}
+              renderItem={({ item: unit }) => (
+                <Pressable
                   style={styles.dropdownOption}
-                  onPress={() => { onChangeText(item); setModalVisible(false); }}
+                  onPress={() => { onSelect(unit.name); setModalVisible(false); }}
                 >
-                  <Text style={[styles.dropdownOptionText, value === item && { color: "#8B5CF6", fontWeight: "700" }]}>
-                    {item}
-                  </Text>
-                  {value === item && <Feather name="check" size={18} color="#8B5CF6" />}
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.dropdownOptionText, value === unit.name && { color: "#8B5CF6", fontWeight: "700" }]}>{unit.name}</Text>
+                    {!!unit.description && <Text style={styles.helperTextSmall}>{unit.description}</Text>}
+                  </View>
+                  {value === unit.name ? (
+                    <Feather name="check" size={18} color="#8B5CF6" />
+                  ) : (
+                    <Pressable onPress={() => removeUnit(unit)} hitSlop={8}>
+                      <Feather name="trash-2" size={15} color="#D1D5DB" />
+                    </Pressable>
+                  )}
                 </Pressable>
               )}
             />
-          </View>
+            <View style={styles.addUnitBox}>
+              <Text style={[styles.inputLabel, { fontSize: 13 }]}>Add a unit</Text>
+              <View style={{ flexDirection: "row", gap: 8 }}>
+                <TextInput style={[styles.textInput, { flex: 1, height: 40 }]} value={newName} onChangeText={setNewName} placeholder="e.g. rolls" placeholderTextColor="#9CA3AF" />
+                <TextInput style={[styles.textInput, { flex: 2, height: 40 }]} value={newDescription} onChangeText={setNewDescription} placeholder="Description (optional)" placeholderTextColor="#9CA3AF" />
+                <Pressable style={[styles.saveBtn, { paddingVertical: 10, paddingHorizontal: 14 }]} onPress={addUnit} disabled={saving || !newName.trim()}>
+                  <Feather name="plus" size={16} color={colors.white} />
+                </Pressable>
+              </View>
+            </View>
+          </Pressable>
         </Pressable>
       </Modal>
     </View>
@@ -102,6 +150,8 @@ export default function ItemsPage() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
+  const [units, setUnits] = useState<UnitOfMeasure[]>([]);
+  const [finalRank, setFinalRank] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("All");
 
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
@@ -115,6 +165,7 @@ export default function ItemsPage() {
     department_id: "",
     unit_of_measure: "pcs",
     name: "",
+    description: "",
     category: "",
     subcategory: "",
     pcs_per_scan: "1",
@@ -133,18 +184,32 @@ export default function ItemsPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [itemsRes, deptsRes] = await Promise.all([
+      const [itemsRes, deptsRes, levelsRes, unitsData] = await Promise.all([
         api.get('/items'),
-        api.get('/departments')
+        api.get('/departments'),
+        api.get('/departments/levels').catch(() => null),
+        ItemService.getUnits().catch(() => []),
       ]);
       setItems(itemsRes.data?.data || []);
       setDepartments(deptsRes.data?.data || []);
+      setUnits(unitsData);
+      const finalLevel = (levelsRes?.data?.data || []).find((l: any) => l.is_final);
+      setFinalRank(finalLevel ? finalLevel.rank : null);
     } catch (error) {
       console.error("Failed to load data", error);
     } finally {
       setLoading(false);
     }
   };
+
+  const loadUnits = async () => {
+    setUnits(await ItemService.getUnits().catch(() => units));
+  };
+
+  // Finished good = item in a top-level department (e.g. Dispatch). Only
+  // those are sold, so only those carry a price / client product code.
+  const isFinishedGoodDept = (deptId: string) =>
+    finalRank !== null && departments.find((d) => String(d.id) === String(deptId))?.level === finalRank;
 
   const getDepartmentName = (id: string) => {
     return departments.find(d => String(d.id) === String(id))?.name || "-";
@@ -155,6 +220,7 @@ export default function ItemsPage() {
   );
   const search = useSearch(filteredItems, (i: any) => `${Object.values(i).join(" ")} ${getDepartmentName(i.department_id)}`);
   const { sorted: sortedItems, sortKey, sortDir, toggleSort } = useSortable<any>(search.filtered);
+  const pagination = usePagination(sortedItems);
 
   const openEditModal = (item?: any) => {
     if (item) {
@@ -165,6 +231,7 @@ export default function ItemsPage() {
         department_id: item.department_id || "",
         unit_of_measure: item.unit_of_measure || "pcs",
         name: item.name || "",
+        description: item.description || "",
         category: item.category || "",
         subcategory: item.subcategory || "",
         pcs_per_scan: String(item.pcs_per_scan || "1"),
@@ -177,7 +244,7 @@ export default function ItemsPage() {
       setSelectedItem(null);
       setForm({
         item_code: "", oem_company_code: "", department_id: "", unit_of_measure: "pcs",
-        name: "", category: "", subcategory: "", pcs_per_scan: "1", price: "", box_qty: "", carton_qty: "",
+        name: "", description: "", category: "", subcategory: "", pcs_per_scan: "1", price: "", box_qty: "", carton_qty: "",
         powder_colour: ""
       });
     }
@@ -189,20 +256,39 @@ export default function ItemsPage() {
     setQRModalVisible(true);
   };
 
-  const handleSaveItem = async () => {
+  const handleSaveItem = async (confirmCodeChange = false) => {
     if (!form.name || !form.department_id || !form.item_code) {
       Alert.alert("Missing Fields", "Code, Department, and Name are required.");
       return;
     }
 
+    // The printed QR label encodes the item code — changing it strands
+    // every label already stuck on a package.
+    if (selectedItem?.id && form.item_code !== selectedItem.item_code && !confirmCodeChange) {
+      Alert.alert(
+        "Change item code?",
+        `Printed QR labels for this item encode "${selectedItem.item_code}". After changing it to "${form.item_code}", those labels will stop scanning and must be reprinted.`,
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Change code", style: "destructive", onPress: () => handleSaveItem(true) },
+        ]
+      );
+      return;
+    }
+
+    const finishedGood = isFinishedGoodDept(form.department_id);
     try {
       setIsSaving(true);
       const payload = {
         ...form,
+        // Only finished goods are sold — anything else carries no price
+        // or client code.
+        price: finishedGood ? parseFloat(form.price) || 0.0 : 0.0,
+        oem_company_code: finishedGood ? form.oem_company_code : "",
         pcs_per_scan: parseInt(form.pcs_per_scan) || 1,
-        price: parseFloat(form.price) || 0.0,
         box_qty: parseInt(form.box_qty) || 0,
-        carton_qty: parseInt(form.carton_qty) || 0
+        carton_qty: parseInt(form.carton_qty) || 0,
+        confirm_code_change: confirmCodeChange,
       };
 
       if (selectedItem?.id) {
@@ -265,7 +351,7 @@ export default function ItemsPage() {
           <View style={styles.tableCard}>
             <View style={styles.tableHeader}>
               <SortableHeaderCell label="CODE" active={sortKey === "item_code"} direction={sortDir} onPress={() => toggleSort("item_code")} textStyle={styles.columnHeader} containerStyle={{ width: 100 }} />
-              <SortableHeaderCell label="OEM CODE" active={sortKey === "oem_company_code"} direction={sortDir} onPress={() => toggleSort("oem_company_code")} textStyle={styles.columnHeader} containerStyle={{ width: 120 }} />
+              <SortableHeaderCell label="CLIENT CODE" active={sortKey === "oem_company_code"} direction={sortDir} onPress={() => toggleSort("oem_company_code")} textStyle={styles.columnHeader} containerStyle={{ width: 120 }} />
               <SortableHeaderCell label="NAME" active={sortKey === "name"} direction={sortDir} onPress={() => toggleSort("name")} textStyle={styles.columnHeader} containerStyle={{ flex: 1, minWidth: 200 }} />
               <Text style={[styles.columnHeader, { width: 150 }]}>DEPARTMENT</Text>
               <SortableHeaderCell label="UNIT" active={sortKey === "unit_of_measure"} direction={sortDir} onPress={() => toggleSort("unit_of_measure")} textStyle={styles.columnHeader} containerStyle={{ width: 80 }} />
@@ -279,7 +365,7 @@ export default function ItemsPage() {
                 <Text style={styles.emptyStateText}>No items found.</Text>
               </View>
             ) : (
-              sortedItems.map((item) => (
+              pagination.pageRows.map((item) => (
                 <View key={item.id} style={styles.tableRow}>
                   <Text style={[styles.cellText, { width: 100, fontWeight: "600", color: "#111111" }]}>{item.item_code}</Text>
                   <Text style={[styles.cellText, { width: 120, color: "#6B7280" }]}>{item.oem_company_code || "-"}</Text>
@@ -310,6 +396,7 @@ export default function ItemsPage() {
             )}
           </View>
         </ScrollView>
+        <Pagination {...pagination} />
       </ScrollView>
 
      {/* QR Code Modal (Printable Label Format) */}
@@ -326,19 +413,17 @@ export default function ItemsPage() {
            <View style={styles.qrContainer}>
               {/* The actual QR Code Image now encodes ALL the text */}
               <Image 
-                source={{ 
-                  uri: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(
-                    `Item: ${selectedItem?.name}\n` +
-                    `Code: ${selectedItem?.item_code}\n` +
-                    `OEM: ${selectedItem?.oem_company_code || "N/A"}\n` +
-                    `Scan Qty: ${selectedItem?.pcs_per_scan} ${selectedItem?.unit_of_measure}\n` +
-                    `Box Qty: ${selectedItem?.box_qty || "N/A"}\n` +
-                    `Carton Qty: ${selectedItem?.carton_qty || "N/A"}`
-                  )}` 
-                }} 
+                // Encodes ONLY the item code — same as the printed labels
+                // (labels_api) — so the QR never changes when the name,
+                // box qty etc. are edited. Only changing the code itself
+                // would, and that asks for confirmation first.
+                source={{
+                  uri: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(selectedItem?.item_code || "")}`
+                }}
                 style={styles.qrImage} 
               />
               <Text style={styles.qrTextString}>{selectedItem?.item_code}</Text>
+              <Text style={styles.qrItemName}>{selectedItem?.name}</Text>
 
 
               </View>
@@ -375,16 +460,12 @@ export default function ItemsPage() {
                     onChangeText={(val) => setForm({ ...form, item_code: val })}
                   />
                 </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.inputLabel}>OEM Company Code</Text>
-                  <TextInput 
-                    style={styles.textInput} 
-                    value={form.oem_company_code} 
-                    placeholder="If provided by client"
-                    onChangeText={(val) => setForm({ ...form, oem_company_code: val })}
-                  />
-                </View>
               </View>
+              {!!selectedItem?.id && form.item_code !== selectedItem.item_code && (
+                <Text style={[styles.helperTextSmall, { color: "#B45309", marginTop: -8, marginBottom: 12 }]}>
+                  Changing the code makes QR labels already printed for this item stop scanning.
+                </Text>
+              )}
 
               {/* Row 2: Department & Unit */}
               <View style={styles.formRow}>
@@ -398,12 +479,12 @@ export default function ItemsPage() {
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <ComboInput 
-                    label="Unit" 
-                    placeholder="pcs" 
-                    value={form.unit_of_measure} 
-                    options={UNIT_OPTIONS} 
-                    onChangeText={(val: string) => setForm({ ...form, unit_of_measure: val })}
+                  <UnitSelect
+                    label="Unit"
+                    value={form.unit_of_measure}
+                    units={units}
+                    onSelect={(val) => setForm({ ...form, unit_of_measure: val })}
+                    onUnitsChanged={loadUnits}
                   />
                 </View>
               </View>
@@ -416,6 +497,43 @@ export default function ItemsPage() {
                   onChangeText={(val) => setForm({ ...form, name: val })}
                 />
               </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Description (optional)</Text>
+                <TextInput
+                  style={[styles.textInput, { height: 72, textAlignVertical: "top" }]}
+                  value={form.description}
+                  multiline
+                  placeholder="Shown next to the product when entering a customer PO"
+                  placeholderTextColor="#9CA3AF"
+                  onChangeText={(val) => setForm({ ...form, description: val })}
+                />
+              </View>
+
+              {isFinishedGoodDept(form.department_id) && (
+                <View style={styles.formRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.inputLabel}>Client's product code</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={form.oem_company_code}
+                      placeholder="The code your client uses for this"
+                      placeholderTextColor="#9CA3AF"
+                      onChangeText={(val) => setForm({ ...form, oem_company_code: val })}
+                    />
+                    <Text style={styles.helperTextSmall}>Pre-filled on customer POs. Can be overridden per client on the PO itself.</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.inputLabel}>Price</Text>
+                    <TextInput
+                      style={styles.textInput}
+                      value={form.price}
+                      keyboardType="numeric"
+                      onChangeText={(val) => setForm({ ...form, price: val })}
+                    />
+                  </View>
+                </View>
+              )}
 
               <View style={styles.formRow}>
                 <View style={{ flex: 1 }}>
@@ -449,15 +567,6 @@ export default function ItemsPage() {
 
               <View style={styles.formRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.inputLabel}>Price</Text>
-                  <TextInput 
-                    style={styles.textInput} 
-                    value={form.price} 
-                    keyboardType="numeric"
-                    onChangeText={(val) => setForm({ ...form, price: val })}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
                   <Text style={styles.inputLabel}>Box qty (pcs per box)</Text>
                   <TextInput 
                     style={styles.textInput} 
@@ -478,7 +587,6 @@ export default function ItemsPage() {
                     onChangeText={(val) => setForm({ ...form, carton_qty: val })}
                   />
                 </View>
-                <View style={{ flex: 1 }} />
               </View>
 
               <View style={styles.formRow}>
@@ -509,7 +617,7 @@ export default function ItemsPage() {
             </ScrollView>
 
             <View style={styles.modalFooter}>
-              <Pressable style={styles.saveBtn} onPress={handleSaveItem} disabled={isSaving}>
+              <Pressable style={styles.saveBtn} onPress={() => handleSaveItem()} disabled={isSaving}>
                 <Text style={styles.saveBtnText}>{isSaving ? "Saving..." : "Save item"}</Text>
               </Pressable>
             </View>
@@ -587,6 +695,8 @@ const styles = StyleSheet.create({
   colourOptionTextActive: { color: colors.white },
   helperTextSmall: { fontSize: 12, color: "#9CA3AF", marginTop: 8 },
   selectInputBox: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: "#F9FAFB", borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 10, paddingHorizontal: 16, height: 48 },
+  inputText: { fontSize: 15, color: "#111111", flex: 1 },
+  addUnitBox: { padding: 16, borderTopWidth: 1, borderTopColor: "#E5E7EB", backgroundColor: "#F9FAFB" },
   comboInputBox: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: "#F9FAFB", borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 10, paddingHorizontal: 16, height: 48 },
   comboTextInput: { flex: 1, fontSize: 15, color: "#111111", height: "100%" },
   comboIconBtn: { padding: 8, marginRight: -8 },

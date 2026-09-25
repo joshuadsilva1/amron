@@ -7,8 +7,11 @@ export interface OEMMapping {
   party_name: string;
   party_code: string;
   client_product_name: string | null;
+  internal_product_id: string;
   internal_product: string;
   internal_code: string | null;
+  description: string | null;
+  unit_of_measure: string | null;
   box_type: string | null;
   pieces_per_box: number | null;
   pouch_type: string | null;

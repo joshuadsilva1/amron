@@ -24,9 +24,10 @@ export interface DepartmentPO {
 }
 
 export default class DepartmentPoService {
-  // Explodes ONE LEVEL of a customer PO's line items' recipes, raises (or
-  // tops up) one internal DepartmentPO per department owing a direct
-  // component, and notifies each department.
+  // Walks a customer PO's recipes, raises (or tops up) one internal
+  // DepartmentPO per department owing a part — direct components, plus
+  // any made-here sub-parts below them (not bought raw materials) — and
+  // notifies each department.
   static async generateFromPO(poId: string) {
     const response = await api.post<{ status: string; message: string; department_po_ids: string[] }>(
       "/department-pos/generate",

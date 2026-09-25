@@ -8,6 +8,7 @@ import colors from "@/theme/colors";
 import spacing from "@/theme/spacing";
 import api from "@/services/api";
 import RecipeService from "@/services/recipeService";
+import DepartmentPoService from "@/services/departmentPoService";
 
 // --- Reusable Dropdown Component ---
 const SelectInput = ({ label, placeholder, value, options, onSelect, hasRecipeIds, disabled }: any) => {
@@ -209,7 +210,32 @@ export default function RecipeBuilderPage() {
         })),
         notes: notes.trim() || undefined,
       });
-      Alert.alert("Success", `Saved as version ${result.version}. The previous version is kept in history, not overwritten.`);
+      const saved = `Saved as version ${result.version}. The previous version is kept in history, not overwritten.`;
+      const unsent = result.unsent_po_ids || [];
+      if (unsent.length > 0) {
+        // Orders for this item that couldn't go to departments earlier
+        // because it had no recipe — offer to send them right now.
+        Alert.alert(
+          "Recipe saved",
+          `${saved}\n\n${unsent.length} customer order${unsent.length === 1 ? " is" : "s are"} waiting on this recipe. Send ${unsent.length === 1 ? "it" : "them"} to departments now?`,
+          [
+            { text: "Later", style: "cancel" },
+            {
+              text: "Send now",
+              onPress: async () => {
+                try {
+                  const sent = await DepartmentPoService.generateFromPOs(unsent);
+                  Alert.alert("Sent", sent.message);
+                } catch (error: any) {
+                  Alert.alert("Not sent", error?.response?.data?.error || "Failed to send to departments.");
+                }
+              },
+            },
+          ]
+        );
+      } else {
+        Alert.alert("Success", saved);
+      }
       if (isEditing) {
         router.back();
       } else {
@@ -350,15 +376,27 @@ export default function RecipeBuilderPage() {
                       </View>
                     </View>
                     
-                    <View style={styles.qtyRow}>
-                      <Text style={styles.label}>Qty required per unit:</Text>
-                      <TextInput
-                        style={styles.qtyInput}
-                        value={comp.qty}
-                        onChangeText={(val) => updateComponent(comp.id, 'qty', val)}
-                        keyboardType="numeric"
-                      />
-                    </View>
+                    {(() => {
+                      // Spelled out in real units so e.g. powder reads
+                      // "0.012 kg per 1 pcs of Switch Cap".
+                      const material = rawMaterials.find((rm: any) => rm.id === comp.itemId);
+                      const built = finishedGoods.find((fg: any) => fg.id === selectedFG);
+                      return (
+                        <View style={styles.qtyRow}>
+                          <Text style={styles.label}>Needs</Text>
+                          <TextInput
+                            style={styles.qtyInput}
+                            value={comp.qty}
+                            onChangeText={(val) => updateComponent(comp.id, 'qty', val.replace(/[^0-9.]/g, ""))}
+                            keyboardType="decimal-pad"
+                          />
+                          <Text style={[styles.label, { marginLeft: 8 }]}>
+                            {material?.unit_of_measure || "units"} per 1 {built?.unit_of_measure || "pcs"}
+                            {built ? ` of ${built.name}` : ""}
+                          </Text>
+                        </View>
+                      );
+                    })()}
 
                     {(() => {
                       const material = rawMaterials.find((rm: any) => rm.id === comp.itemId);
@@ -458,8 +496,8 @@ const styles = StyleSheet.create({
   componentInputs: { flex: 1 },
   inputSplit: { flexDirection: Platform.OS === "web" ? "row" : "column", marginBottom: 12 },
   
-  qtyRow: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end" },
-  qtyInput: { backgroundColor: colors.white, borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 8, width: 80, height: 40, paddingHorizontal: 12, fontSize: 15, textAlign: "center", marginLeft: 12 },
+  qtyRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
+  qtyInput: { backgroundColor: colors.white, borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 8, width: 90, height: 40, paddingHorizontal: 12, fontSize: 15, textAlign: "center", marginLeft: 8 },
 
   routingRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 8, marginTop: 10 },
   routingChip: { flexDirection: "row", alignItems: "center", backgroundColor: "#F3F4F6", borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 20, paddingVertical: 6, paddingHorizontal: 12 },
