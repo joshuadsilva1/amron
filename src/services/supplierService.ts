@@ -102,6 +102,18 @@ export default class SupplierOrderService {
     return response.data as { status: string; message: string };
   }
 
+  // Fix an order's quantity (e.g. placed off a wrong recipe figure).
+  static async updateOrderQuantity(orderId: string, productId: string, orderedQty: number) {
+    const response = await api.put(`/suppliers/orders/${orderId}/quantity`, { product_id: productId, ordered_qty: orderedQty });
+    return response.data as { status: string; message: string };
+  }
+
+  // Only while nothing has been received or sent on it.
+  static async cancelOrder(orderId: string) {
+    const response = await api.post(`/suppliers/orders/${orderId}/cancel`);
+    return response.data as { status: string; message: string };
+  }
+
   // Goods arrive from the supplier into the ordering department's stock.
   static async receiveOrder(orderId: string, items?: { product_id: string; quantity: number }[]) {
     const response = await api.post(`/suppliers/orders/${orderId}/receive`, { items });
