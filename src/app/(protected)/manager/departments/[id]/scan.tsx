@@ -14,9 +14,13 @@ import TransactionService from "@/services/transactionService";
 import { exportToPDF } from "@/utils/export";
 
 // --- Custom Dropdown Component ---
-const SelectInput = ({ label, placeholder, value, options, onSelect }: any) => {
+const SelectInput = ({ label, placeholder, value, options, onSelect, searchable }: any) => {
   const [modalVisible, setModalVisible] = useState(false);
+  const [query, setQuery] = useState("");
   const selectedOption = options?.find((o: any) => o.id === value);
+  const q = query.trim().toLowerCase();
+  const visibleOptions = (options || []).filter((o: any) => !q || String(o.name).toLowerCase().includes(q));
+  const close = () => { setModalVisible(false); setQuery(""); };
 
   return (
     <View style={styles.inputGroup}>
@@ -28,17 +32,32 @@ const SelectInput = ({ label, placeholder, value, options, onSelect }: any) => {
         <Feather name="chevron-down" size={16} color="#9CA3AF" />
       </Pressable>
 
-      <Modal visible={modalVisible} transparent animationType="fade">
-        <Pressable style={styles.dropdownOverlay} onPress={() => setModalVisible(false)}>
-          <View style={styles.dropdownModal}>
+      <Modal visible={modalVisible} transparent animationType="fade" onRequestClose={close}>
+        <Pressable style={styles.dropdownOverlay} onPress={close}>
+          <Pressable style={styles.dropdownModal} onPress={() => {}}>
             <Text style={styles.dropdownTitle}>{placeholder}</Text>
+            {searchable && (
+              <View style={styles.searchRow}>
+                <Feather name="search" size={16} color="#9CA3AF" />
+                <TextInput
+                  style={styles.searchInput}
+                  value={query}
+                  onChangeText={setQuery}
+                  placeholder="Search by code or name..."
+                  placeholderTextColor="#9CA3AF"
+                  autoCorrect={false}
+                />
+              </View>
+            )}
             <FlatList
-              data={options || []}
+              data={visibleOptions}
               keyExtractor={(item) => String(item.id)}
+              keyboardShouldPersistTaps="handled"
+              ListEmptyComponent={<Text style={styles.noMatchText}>No items</Text>}
               renderItem={({ item }) => (
                 <Pressable 
                   style={styles.dropdownOption}
-                  onPress={() => { onSelect(item.id); setModalVisible(false); }}
+                  onPress={() => { onSelect(item.id); close(); }}
                 >
                   <Text style={[styles.dropdownOptionText, value === item.id && { color: "#8B5CF6", fontWeight: "700" }]}>
                     {item.name}
@@ -47,7 +66,7 @@ const SelectInput = ({ label, placeholder, value, options, onSelect }: any) => {
                 </Pressable>
               )}
             />
-          </View>
+          </Pressable>
         </Pressable>
       </Modal>
     </View>
@@ -120,6 +139,14 @@ export default function ScanInOutPage() {
       fetchMovements(selectedDeptId);
     }
   }, [selectedDeptId]);
+
+  // This department's items first, then everything else — stock can
+  // arrive in a department for items that belong elsewhere.
+  const itemOptions = [...masterItems]
+    .sort((a, b) => Number(b.department_id === selectedDeptId) - Number(a.department_id === selectedDeptId)
+      || String(a.item_code).localeCompare(String(b.item_code)))
+    .map((i) => ({ id: i.id, name: `${i.item_code} — ${i.name} (${i.unit_of_measure || "pcs"})` }));
+  const scannedUnit = masterItems.find((i) => i.item_code === scannedItemCode)?.unit_of_measure || "";
 
   const fetchMovements = async (deptId: string) => {
     if (!deptId) return;
@@ -385,6 +412,18 @@ export default function ScanInOutPage() {
                 </View>
               </View>
 
+              <SelectInput
+                label="…or pick the item from the list"
+                placeholder="Select item..."
+                searchable
+                value={masterItems.find((i) => i.item_code === scannedItemCode)?.id || ""}
+                options={itemOptions}
+                onSelect={(itemId: string) => {
+                  const picked = masterItems.find((i) => i.id === itemId);
+                  if (picked?.item_code) resolveItemScan(picked.item_code);
+                }}
+              />
+
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>2. Scan rack QR (optional) (or type it below)</Text>
                 <Pressable style={[styles.scanTriggerBtn, scannedRack && { borderColor: "#8B5CF6", backgroundColor: "#F5F3FF" }]} onPress={() => openScanner("rack")}>
@@ -406,7 +445,9 @@ export default function ScanInOutPage() {
 
               <View style={styles.formRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.label}>Quantity</Text>
+                  <Text style={styles.label}>
+                    Quantity{scannedUnit ? ` (${scannedUnit})` : ""}
+                  </Text>
                   <TextInput 
                     style={styles.textInput}
                     value={quantity}
@@ -483,7 +524,7 @@ export default function ScanInOutPage() {
                       </View>
                       <View style={{ alignItems: 'flex-end' }}>
                         <Text style={[styles.movementQty, m.transaction_type === 'IN' ? { color: '#10B981' } : { color: '#EF4444' }]}>
-                          {m.transaction_type === 'IN' ? '+' : '-'}{m.quantity}
+                          {m.transaction_type === 'IN' ? '+' : '-'}{m.quantity}{m.unit_of_measure ? ` ${m.unit_of_measure}` : ""}
                         </Text>
                       </View>
                     </View>
@@ -558,13 +599,16 @@ const styles = StyleSheet.create({
   selectText: { fontSize: 15, color: "#111111", fontWeight: "500" },
 
   dropdownOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center", padding: 20 },
-  dropdownModal: { width: "100%", maxWidth: 320, backgroundColor: colors.white, borderRadius: 16, overflow: "hidden", elevation: 10 },
+  dropdownModal: { width: "100%", maxWidth: 420, maxHeight: "70%", backgroundColor: colors.white, borderRadius: 16, overflow: "hidden", elevation: 10 },
   dropdownTitle: { fontSize: 14, fontWeight: "700", color: "#111111", padding: 16, borderBottomWidth: 1, borderBottomColor: "#E5E7EB", backgroundColor: "#F9FAFB" },
   dropdownOption: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: 16, borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
   dropdownOptionText: { fontSize: 15, color: "#374151" },
 
   scanTriggerBtn: { flexDirection: "row", alignItems: "center", justifyContent: "flex-start", paddingLeft: 16, backgroundColor: colors.white, borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 12, height: 48 },
   scanTriggerText: { fontSize: 14, fontWeight: "600", color: "#374151" },
+  searchRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
+  searchInput: { flex: 1, fontSize: 15, color: "#111111", paddingVertical: 4 },
+  noMatchText: { padding: 20, textAlign: "center", color: "#9CA3AF", fontSize: 14 },
   manualRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
   manualGoBtn: { backgroundColor: "#111111", borderRadius: 8, paddingHorizontal: 16, height: 44, alignItems: "center", justifyContent: "center" },
   manualGoBtnText: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },

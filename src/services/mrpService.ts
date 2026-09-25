@@ -5,6 +5,8 @@ export interface MRPItem {
   item_code: string | null;
   item_name: string;
   category: string | null;
+  unit_of_measure: string | null;
+  department_id: string | null;
   physical_stock: number;
   reserved: number;
   available: number;

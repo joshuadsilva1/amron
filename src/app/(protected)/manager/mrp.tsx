@@ -40,6 +40,8 @@ const SelectInput = ({ placeholder, options, onSelect }: any) => {
   );
 };
 
+const fmtQty = (n: number) => String(Math.round((n || 0) * 100) / 100);
+
 export default function MRPScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -96,6 +98,8 @@ export default function MRPScreen() {
       setCreatingOrderFor(group.supplier_id);
       await SupplierOrderService.placeOrder({
         supplier_id: group.supplier_id,
+        // Blank = the backend uses the items' own department (e.g. Raw
+        // Material for powder), which is where they'll be received into.
         department_id: "",
         is_urgent: 0,
         notes: "Auto-generated from Material Requirements (MRP)",
@@ -177,15 +181,15 @@ export default function MRPScreen() {
                   <Text style={styles.itemName}>{item.item_name}</Text>
                   <Text style={styles.itemCode}>{item.item_code || "No code"}</Text>
                   <View style={styles.metricsRow}>
-                    <Text style={styles.metric}>Physical: {item.physical_stock}</Text>
-                    <Text style={styles.metric}>Reserved: {item.reserved}</Text>
-                    <Text style={[styles.metric, item.available < 0 && styles.metricNegative]}>Available: {item.available}</Text>
-                    <Text style={styles.metric}>Incoming: {item.incoming}</Text>
+                    <Text style={styles.metric}>In stock: {fmtQty(item.physical_stock)} {item.unit_of_measure || ""}</Text>
+                    <Text style={styles.metric}>Needed for open orders: {fmtQty(item.reserved)} {item.unit_of_measure || ""}</Text>
+                    <Text style={[styles.metric, item.available < 0 && styles.metricNegative]}>Available: {fmtQty(item.available)} {item.unit_of_measure || ""}</Text>
+                    <Text style={styles.metric}>Incoming (approved orders): {fmtQty(item.incoming)} {item.unit_of_measure || ""}</Text>
                   </View>
                 </View>
                 <View style={styles.shortageBox}>
                   <Text style={styles.shortageValue}>{Math.ceil(item.shortage)}</Text>
-                  <Text style={styles.shortageLabel}>SHORT</Text>
+                  <Text style={styles.shortageLabel}>{(item.unit_of_measure || "").toUpperCase()} SHORT</Text>
                 </View>
                 {!group.supplier_id && (
                   assigningItemId === item.item_id ? (
