@@ -10,6 +10,8 @@ import { exportToExcel, exportToPDF } from "@/utils/export";
 import { useSortable } from "@/utils/useSortable";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
+import { usePagination } from "@/utils/usePagination";
+import Pagination from "@/components/common/Pagination";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
 import DatePickerInput from "@/components/common/DatePickerInput";
 
@@ -80,6 +82,7 @@ export default function AttendancePage() {
   const [summary, setSummary] = useState({ present_count: 0, total_staff: 0 });
   const search = useSearch(attendanceData);
   const { sorted: sortedAttendance, sortKey, sortDir, toggleSort } = useSortable<any>(search.filtered);
+  const pagination = usePagination(sortedAttendance);
 
   // Modal Form State
   const [formName, setFormName] = useState("");
@@ -250,6 +253,7 @@ export default function AttendancePage() {
           resultCount={search.filtered.length}
           totalCount={attendanceData.length}
         />
+        <Pagination {...pagination} />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
           <View style={styles.tableCard}>
             <View style={styles.tableHeader}>
@@ -266,7 +270,7 @@ export default function AttendancePage() {
                 <Text style={styles.emptyStateText}>No employees yet. Add your first.</Text>
               </View>
             ) : (
-              sortedAttendance.map((emp) => (
+              pagination.pageRows.map((emp) => (
                 <View key={emp.employee_id} style={styles.tableRow}>
                   <Text style={[styles.cellText, { flex: 1, minWidth: 180, fontWeight: "600", color: "#111111" }]}>{emp.name}</Text>
                   <Text style={[styles.cellText, { width: 120 }]}>{emp.department}</Text>

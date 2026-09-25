@@ -10,6 +10,8 @@ import { exportToExcel, exportToPDF } from "@/utils/export";
 import { useSortable } from "@/utils/useSortable";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
+import { usePagination } from "@/utils/usePagination";
+import Pagination from "@/components/common/Pagination";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
 
 // Helper to format the month string for the UI (e.g., "July 2026")
@@ -32,6 +34,7 @@ export default function EmployeePayrollPage() {
 
   const search = useSearch(payrollData);
   const { sorted: sortedPayroll, sortKey, sortDir, toggleSort } = useSortable<PayrollSummary>(search.filtered);
+  const pagination = usePagination(sortedPayroll);
 
   useEffect(() => {
     fetchPayroll();
@@ -160,6 +163,7 @@ export default function EmployeePayrollPage() {
           resultCount={search.filtered.length}
           totalCount={payrollData.length}
         />
+        <Pagination {...pagination} />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
           <View style={styles.tableCard}>
             <View style={styles.tableHeader}>
@@ -179,7 +183,7 @@ export default function EmployeePayrollPage() {
                 <Text style={styles.emptyStateText}>No employees yet.</Text>
               </View>
             ) : (
-              sortedPayroll.map((record) => (
+              pagination.pageRows.map((record) => (
                 <View key={record.user_id} style={styles.tableRow}>
                   <Text style={[styles.cellText, { width: 180, fontWeight: "600", color: "#111111" }]}>{record.worker_name}</Text>
 

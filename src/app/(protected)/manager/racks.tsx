@@ -9,6 +9,8 @@ import api from "@/services/api";
 import { useSortable } from "@/utils/useSortable";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
+import { usePagination } from "@/utils/usePagination";
+import Pagination from "@/components/common/Pagination";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
 
 const SelectInput = ({ label, placeholder, value, options, onSelect }: any) => {
@@ -98,6 +100,7 @@ export default function ManageRacksPage() {
   );
   const search = useSearch(filteredRacks, (r: any) => `${Object.values(r).join(" ")} ${getDepartmentName(r.department_id)}`);
   const { sorted: sortedRacks, sortKey, sortDir, toggleSort } = useSortable<any>(search.filtered);
+  const pagination = usePagination(sortedRacks);
 
   const openEditModal = (rack?: any) => {
     if (rack) {
@@ -189,6 +192,7 @@ export default function ManageRacksPage() {
           resultCount={search.filtered.length}
           totalCount={filteredRacks.length}
         />
+        <Pagination {...pagination} />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
           <View style={styles.tableCard}>
             <View style={styles.tableHeader}>
@@ -206,7 +210,7 @@ export default function ManageRacksPage() {
                 <Text style={styles.emptyStateText}>No racks configured yet.</Text>
               </View>
             ) : (
-              sortedRacks.map((rack) => (
+              pagination.pageRows.map((rack) => (
                 <View key={rack.id} style={styles.tableRow}>
                   <Text style={[styles.cellText, { width: 120, fontWeight: "700", color: "#111111" }]}>{rack.rack_code}</Text>
 

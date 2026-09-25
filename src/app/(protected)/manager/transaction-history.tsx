@@ -8,6 +8,8 @@ import spacing from "@/theme/spacing";
 import TransactionService from "@/services/transactionService";
 import { exportToExcel, exportToPDF } from "@/utils/export";
 import { useSortable } from "@/utils/useSortable";
+import { usePagination } from "@/utils/usePagination";
+import Pagination from "@/components/common/Pagination";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
 
 // --- Custom Dropdown Component ---
@@ -99,6 +101,7 @@ export default function TransactionHistoryPage() {
   });
 
   const { sorted: sortedTransactions, sortKey, sortDir, toggleSort } = useSortable<any>(filteredTransactions);
+  const pagination = usePagination(sortedTransactions);
 
   // Extract unique products list for product dropdown filter
   const productOptions = [
@@ -213,7 +216,7 @@ export default function TransactionHistoryPage() {
                   <SortableHeaderCell label="DATE" active={sortKey === "created_at"} direction={sortDir} onPress={() => toggleSort("created_at")} textStyle={styles.columnHeader} containerStyle={{ flex: 1, minWidth: 110 }} />
                 </View>
 
-                {sortedTransactions.map((tx) => (
+                {pagination.pageRows.map((tx) => (
                   <View key={tx.id || Math.random()} style={styles.tableRow}>
                     <Text style={[styles.cellText, { width: 130, fontWeight: "600" }]}>{tx.challan_number || "-"}</Text>
                     <Text style={[styles.cellText, { width: 180 }]}>{tx.product_name || "-"}</Text>
@@ -235,6 +238,7 @@ export default function TransactionHistoryPage() {
             )}
           </View>
         </ScrollView>
+        <Pagination {...pagination} />
 
       </ScrollView>
     </View>

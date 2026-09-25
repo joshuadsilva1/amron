@@ -5,6 +5,8 @@ import { Feather } from "@expo/vector-icons";
 import api from "@/services/api";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
+import { usePagination } from "@/utils/usePagination";
+import Pagination from "@/components/common/Pagination";
 
 interface NavRoute { id: number; path: string; label: string; description: string | null; }
 
@@ -20,6 +22,7 @@ export default function NavRoutesScreen() {
   const [description, setDescription] = useState("");
 
   const search = useSearch(routes, (r) => `${r.label} ${r.path} ${r.description || ""}`);
+  const pagination = usePagination(search.filtered);
 
   useEffect(() => { fetchRoutes(); }, []);
 
@@ -101,7 +104,8 @@ export default function NavRoutesScreen() {
       <SearchBar value={search.query} onChangeText={search.setQuery} placeholder="Search by name or path..." resultCount={search.filtered.length} totalCount={routes.length} />
 
       <FlatList
-        data={search.filtered}
+        data={pagination.pageRows}
+        ListFooterComponent={<Pagination {...pagination} />}
         keyExtractor={(item) => item.id.toString()}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}

@@ -13,6 +13,8 @@ import WhatsAppService, { ReportSection } from "@/services/whatsappService";
 import { useSortable } from "@/utils/useSortable";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
+import { usePagination } from "@/utils/usePagination";
+import Pagination from "@/components/common/Pagination";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
 
 export default function ReportsPage() {
@@ -37,6 +39,8 @@ export default function ReportsPage() {
   const activeSearch = activeTab === "stock" ? stockSearch : urgentSearch;
   const stockSort = useSortable<StockItem>(stockSearch.filtered);
   const urgentSort = useSortable<any>(urgentSearch.filtered);
+  const stockPage = usePagination(stockSort.sorted);
+  const urgentPage = usePagination(urgentSort.sorted);
   const activeSort = activeTab === "stock" ? stockSort : urgentSort;
 
   useEffect(() => {
@@ -317,6 +321,7 @@ export default function ReportsPage() {
           resultCount={activeSearch.filtered.length}
           totalCount={activeTab === "stock" ? currentStock.length : urgentOrders.length}
         />
+        <Pagination {...(activeTab === "stock" ? stockPage : urgentPage)} />
 
         {/* Data Table */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
@@ -360,7 +365,7 @@ export default function ReportsPage() {
             <View style={styles.emptyState}><Text style={styles.emptyText}>No urgent orders found.</Text></View>
           ) : (
             activeTab === "stock" ? (
-              stockSort.sorted.map((row: StockItem) => (
+              stockPage.pageRows.map((row: StockItem) => (
                 <View key={row.id} style={styles.tableRow}>
                   <Text style={[styles.cellText, { width: 140, fontWeight: "600" }]}>{row.item_code}</Text>
                   <Text style={[styles.cellText, { width: 280 }]}>{row.name}</Text>
@@ -375,7 +380,7 @@ export default function ReportsPage() {
                 </View>
               ))
             ) : (
-              urgentSort.sorted.map((order: any) => (
+              urgentPage.pageRows.map((order: any) => (
                 <View key={order.id} style={styles.tableRow}>
                   <Text style={[styles.cellText, { width: 140, fontWeight: "600" }]}>PO-{order.id.substring(0, 5).toUpperCase()}</Text>
                   <Text style={[styles.cellText, { width: 280 }]}>{order.supplier_name}</Text>

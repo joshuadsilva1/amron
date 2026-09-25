@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, FlatList, ActivityIndicator } from "react-native";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
+import { usePagination } from "@/utils/usePagination";
+import Pagination from "@/components/common/Pagination";
 
 import TransactionService from "@/services/transactionService";
 import colors from "@/theme/colors";
@@ -11,6 +13,7 @@ import typography from "@/theme/typography";
 export default function ChallanHistoryScreen() {
   const [history, setHistory] = useState<any[]>([]);
   const search = useSearch(history);
+  const pagination = usePagination(search.filtered);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -75,7 +78,8 @@ export default function ChallanHistoryScreen() {
         <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
       ) : (
         <FlatList
-          data={search.filtered}
+          data={pagination.pageRows}
+        ListFooterComponent={<Pagination {...pagination} />}
           keyExtractor={(item) => item.challan_number}
           renderItem={renderChallan}
           contentContainerStyle={styles.listContent}

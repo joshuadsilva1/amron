@@ -5,6 +5,8 @@ import api from "@/services/api";
 import SearchBar from "@/components/common/SearchBar";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
 import { useSearch } from "@/utils/useSearch";
+import { usePagination } from "@/utils/usePagination";
+import Pagination from "@/components/common/Pagination";
 import { useSortable } from "@/utils/useSortable";
 
 interface AuditLogRow {
@@ -68,6 +70,7 @@ export default function AuditLogScreen() {
 
   const search = useSearch(logs, (l) => `${l.user_label} ${l.action} ${l.resource_type} ${l.resource_id}`);
   const { sorted, sortKey, sortDir, toggleSort } = useSortable<AuditLogRow>(search.filtered, "created_at" as any);
+  const pagination = usePagination(sorted);
 
   const actionOptions = Array.from(new Set(logs.map((l) => l.action))).sort();
   const resourceOptions = Array.from(new Set(logs.map((l) => l.resource_type))).sort();
@@ -89,6 +92,7 @@ export default function AuditLogScreen() {
         resultCount={search.filtered.length}
         totalCount={logs.length}
       />
+      <Pagination {...pagination} />
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
         <View style={styles.tableCard}>
@@ -108,7 +112,7 @@ export default function AuditLogScreen() {
               <Text style={styles.emptyStateText}>No matching audit entries.</Text>
             </View>
           ) : (
-            sorted.map((l) => (
+            pagination.pageRows.map((l) => (
               <View key={l.id} style={styles.tableRow}>
                 <Text style={[styles.cellText, { width: 160, color: "#6B7280" }]}>
                   {l.created_at ? new Date(l.created_at).toLocaleString() : "-"}

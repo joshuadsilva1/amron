@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Modal } from "react-native";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
+import { usePagination } from "@/utils/usePagination";
+import Pagination from "@/components/common/Pagination";
 import { Feather } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 
@@ -13,6 +15,7 @@ export default function RecipesListPage() {
   const [loading, setLoading] = useState(true);
   const [recipes, setRecipes] = useState<RecipeSummary[]>([]);
   const search = useSearch(recipes);
+  const pagination = usePagination(search.filtered);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const [historyFor, setHistoryFor] = useState<RecipeSummary | null>(null);
@@ -74,6 +77,7 @@ export default function RecipesListPage() {
           resultCount={search.filtered.length}
           totalCount={recipes.length}
         />
+        <Pagination {...pagination} />
         {loading ? (
           <ActivityIndicator size="large" color="#8B5CF6" style={{ marginTop: 60 }} />
         ) : recipes.length === 0 ? (
@@ -81,7 +85,7 @@ export default function RecipesListPage() {
             <Text style={styles.emptyText}>No recipes defined yet. Tap "New recipe" to build one.</Text>
           </View>
         ) : (
-          search.filtered.map((recipe) => {
+          pagination.pageRows.map((recipe) => {
             const isExpanded = expandedId === recipe.finished_good_id;
             return (
               <View key={recipe.finished_good_id} style={styles.card}>

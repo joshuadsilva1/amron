@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Platform, ActivityIndicator, Modal, FlatList } from "react-native";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
+import { usePagination } from "@/utils/usePagination";
+import Pagination from "@/components/common/Pagination";
 import Alert from "@/utils/alert";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router"; // <-- Import this to read the URL
@@ -73,6 +75,7 @@ export default function DepartmentSupplierOrdersPage() {
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const search = useSearch(orders);
+  const pagination = usePagination(search.filtered);
 
   // Unit Options
   const unitOptions = [{ id: "pcs", name: "pcs" }, { id: "kg", name: "kg" }, { id: "boxes", name: "boxes" }];
@@ -404,13 +407,14 @@ export default function DepartmentSupplierOrdersPage() {
               resultCount={search.filtered.length}
               totalCount={orders.length}
             />
+            <Pagination {...pagination} />
 
             {loading ? (
               <ActivityIndicator size="large" color="#8B5CF6" />
             ) : orders.length === 0 ? (
               <Text style={styles.emptyText}>No {departmentName} orders yet.</Text>
             ) : (
-              search.filtered.map((o: any) => (
+              pagination.pageRows.map((o: any) => (
                 <View key={o.id} style={styles.orderRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.orderNumber}>

@@ -11,6 +11,8 @@ import DepartmentPoService from "@/services/departmentPoService";
 import { useSortable } from "@/utils/useSortable";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
+import { usePagination } from "@/utils/usePagination";
+import Pagination from "@/components/common/Pagination";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
 
 const RISK_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
@@ -45,6 +47,7 @@ export default function ControlTowerScreen() {
 
   const search = useSearch(orders);
   const { sorted: sortedOrders, sortKey, sortDir, toggleSort } = useSortable<ControlTowerOrderRow>(search.filtered);
+  const pagination = usePagination(sortedOrders);
 
   const fetchData = useCallback(async () => {
     try {
@@ -223,6 +226,7 @@ export default function ControlTowerScreen() {
             resultCount={search.filtered.length}
             totalCount={orders.length}
           />
+          <Pagination {...pagination} />
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
             <View style={styles.tableCard}>
@@ -244,7 +248,7 @@ export default function ControlTowerScreen() {
                   <Text style={styles.emptyStateText}>No active orders right now.</Text>
                 </View>
               ) : (
-                sortedOrders.map((row) => {
+                pagination.pageRows.map((row) => {
                   const risk = RISK_COLORS[row.risk] || RISK_COLORS.GREEN;
                   return (
                     <View key={row.po_id} style={styles.tableRow}>

@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, Pressable, ScrollView, Platform, ActivityIndica
 import SearchBar from "@/components/common/SearchBar";
 import DatePickerInput from "@/components/common/DatePickerInput";
 import { useSearch } from "@/utils/useSearch";
+import { usePagination } from "@/utils/usePagination";
+import Pagination from "@/components/common/Pagination";
 import Alert from "@/utils/alert";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
@@ -73,6 +75,7 @@ export default function WorkAllotmentPage() {
   const [loading, setLoading] = useState(true);
   const [plans, setPlans] = useState<ProductionPlan[]>([]);
   const search = useSearch(plans);
+  const pagination = usePagination(search.filtered);
   const [items, setItems] = useState<any[]>([]);
 
   const [showForm, setShowForm] = useState(false);
@@ -246,6 +249,7 @@ export default function WorkAllotmentPage() {
           resultCount={search.filtered.length}
           totalCount={plans.length}
         />
+        <Pagination {...pagination} />
 
         {loading ? (
           <ActivityIndicator size="large" color="#8B5CF6" style={{ marginTop: 60 }} />
@@ -255,7 +259,7 @@ export default function WorkAllotmentPage() {
           </View>
         ) : (
           <View style={styles.card}>
-            {search.filtered.map((plan) => {
+            {pagination.pageRows.map((plan) => {
               const statusStyle = STATUS_COLORS[plan.status] || STATUS_COLORS.Pending;
               return (
                 <View key={plan.plan_id} style={styles.planRow}>

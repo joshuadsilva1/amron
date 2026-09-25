@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Platform, Pressable } from "react-native";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
+import { usePagination } from "@/utils/usePagination";
+import Pagination from "@/components/common/Pagination";
 import Alert from "@/utils/alert";
 import { Feather } from "@expo/vector-icons";
 
@@ -13,6 +15,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const search = useSearch(notifications);
+  const pagination = usePagination(search.filtered);
   const [markingRead, setMarkingRead] = useState(false);
 
   useEffect(() => {
@@ -74,6 +77,7 @@ export default function NotificationsPage() {
           resultCount={search.filtered.length}
           totalCount={notifications.length}
         />
+        <Pagination {...pagination} />
 
         {/* Content Box Container */}
         <View style={styles.contentBox}>
@@ -84,7 +88,7 @@ export default function NotificationsPage() {
               <Text style={styles.emptyStateText}>No notifications yet.</Text>
             </View>
           ) : (
-            search.filtered.map((item) => (
+            pagination.pageRows.map((item) => (
               <View key={item.id} style={[styles.notificationCard, !item.is_read && styles.unreadCard]}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.notifTitle}>{item.title}</Text>

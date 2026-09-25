@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, Platform, ActivityIndicator } from "react-native";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
+import { usePagination } from "@/utils/usePagination";
+import Pagination from "@/components/common/Pagination";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, router } from "expo-router";
 
@@ -56,6 +58,7 @@ export default function InternalPOPage() {
 
   const visiblePos = pos.filter((p) => showFulfilled || p.status !== "Fulfilled");
   const search = useSearch(visiblePos);
+  const pagination = usePagination(search.filtered);
 
   return (
     <View style={styles.container}>
@@ -91,6 +94,7 @@ export default function InternalPOPage() {
           resultCount={search.filtered.length}
           totalCount={visiblePos.length}
         />
+        <Pagination {...pagination} />
 
         {loading ? (
           <ActivityIndicator size="large" color="#8B5CF6" style={{ marginTop: 60 }} />
@@ -103,7 +107,7 @@ export default function InternalPOPage() {
             </Text>
           </View>
         ) : (
-          search.filtered.map((dpo) => {
+          pagination.pageRows.map((dpo) => {
             const statusStyle = STATUS_COLORS[dpo.status] || STATUS_COLORS.Pending;
             return (
               <View key={dpo.id} style={styles.card}>

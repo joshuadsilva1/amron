@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, RefreshControl, Modal, FlatList } from "react-native";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
+import { usePagination } from "@/utils/usePagination";
+import Pagination from "@/components/common/Pagination";
 import Alert from "@/utils/alert";
 import { Feather } from "@expo/vector-icons";
 
@@ -43,6 +45,7 @@ export default function MRPScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [groups, setGroups] = useState<MRPSupplierGroup[]>([]);
   const search = useSearch(groups);
+  const pagination = usePagination(search.filtered);
   const [shortageCount, setShortageCount] = useState(0);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [assigningItemId, setAssigningItemId] = useState<string | null>(null);
@@ -134,6 +137,7 @@ export default function MRPScreen() {
         resultCount={search.filtered.length}
         totalCount={groups.length}
       />
+      <Pagination {...pagination} />
       {loading ? (
         <ActivityIndicator size="large" color="#8B5CF6" style={{ marginTop: 60 }} />
       ) : groups.length === 0 ? (
@@ -142,7 +146,7 @@ export default function MRPScreen() {
           <Text style={styles.emptyText}>Nothing short. All open orders are covered by stock + incoming supplies.</Text>
         </View>
       ) : (
-        search.filtered.map((group) => (
+        pagination.pageRows.map((group) => (
           <View key={group.supplier_id || "unassigned"} style={styles.groupCard}>
             <View style={styles.groupHeader}>
               <View style={{ flex: 1 }}>

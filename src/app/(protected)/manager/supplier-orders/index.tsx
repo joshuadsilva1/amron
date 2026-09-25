@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Platform, ActivityIndicator, Modal, FlatList } from "react-native";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
+import { usePagination } from "@/utils/usePagination";
+import Pagination from "@/components/common/Pagination";
 import Alert from "@/utils/alert";
 import { Feather } from "@expo/vector-icons";
 
@@ -69,6 +71,7 @@ export default function SupplierOrdersPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const search = useSearch(orders);
+  const pagination = usePagination(search.filtered);
 
   // Unit Options (UI Only - Your DB doesn't save unit for supplier items currently)
   const unitOptions = [{ id: "pcs", name: "pcs" }, { id: "kg", name: "kg" }, { id: "boxes", name: "boxes" }];
@@ -375,12 +378,13 @@ export default function SupplierOrdersPage() {
               resultCount={search.filtered.length}
               totalCount={orders.length}
             />
+            <Pagination {...pagination} />
             {loading ? (
               <ActivityIndicator size="large" color={colors.primary} />
             ) : orders.length === 0 ? (
               <Text style={styles.emptyText}>No orders yet.</Text>
             ) : (
-              search.filtered.map((o: any) => (
+              pagination.pageRows.map((o: any) => (
                 <View key={o.id} style={styles.orderRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.orderNumber}>

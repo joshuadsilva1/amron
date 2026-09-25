@@ -10,6 +10,8 @@ import spacing from "@/theme/spacing";
 import { useSortable } from "@/utils/useSortable";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
+import { usePagination } from "@/utils/usePagination";
+import Pagination from "@/components/common/Pagination";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
 
 export default function ClientsPage() {
@@ -19,6 +21,7 @@ export default function ClientsPage() {
   const [saving, setSaving] = useState(false);
   const search = useSearch(clients);
   const { sorted: sortedClients, sortKey, sortDir, toggleSort } = useSortable<Client>(search.filtered);
+  const pagination = usePagination(sortedClients);
 
   // Form State
   const [formName, setFormName] = useState("");
@@ -97,6 +100,7 @@ export default function ClientsPage() {
           resultCount={search.filtered.length}
           totalCount={clients.length}
         />
+        <Pagination {...pagination} />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
           <View style={styles.tableCard}>
             
@@ -115,7 +119,7 @@ export default function ClientsPage() {
                   <Text style={styles.emptyText}>No clients yet.</Text>
                 </View>
               ) : (
-                sortedClients.map((client) => (
+                pagination.pageRows.map((client) => (
                   <View key={client.id} style={styles.tableRow}>
                     <Text style={[styles.cellText, styles.cellTextBold, { width: 200 }]}>{client.name}</Text>
                     <Text style={[styles.cellText, { width: 200 }]}>{client.contact_email || "-"}</Text>

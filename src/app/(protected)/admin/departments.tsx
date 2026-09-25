@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
+import { usePagination } from "@/utils/usePagination";
+import Pagination from "@/components/common/Pagination";
 import Alert from "@/utils/alert";
 import { Feather } from "@expo/vector-icons";
 import api from "@/services/api";
@@ -12,6 +14,7 @@ interface Level { id: number; name: string; rank: number; is_final: boolean; }
 export default function DepartmentsManagementScreen() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const search = useSearch(departments);
+  const pagination = usePagination(search.filtered);
   const [levels, setLevels] = useState<Level[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -211,7 +214,8 @@ export default function DepartmentsManagementScreen() {
         style={{ marginTop: 4 }}
       />
       <FlatList
-        data={search.filtered}
+        data={pagination.pageRows}
+        ListFooterComponent={<Pagination {...pagination} />}
         keyExtractor={(item) => item.id.toString()}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}

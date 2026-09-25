@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform } from "react-native";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
+import { usePagination } from "@/utils/usePagination";
+import Pagination from "@/components/common/Pagination";
 import Alert from "@/utils/alert";
 import { Feather } from "@expo/vector-icons";
 import SupplierOrderService, { Supplier } from "@/services/supplierService";
@@ -9,6 +11,7 @@ import SupplierOrderService, { Supplier } from "@/services/supplierService";
 export default function SuppliersScreen() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const search = useSearch(suppliers);
+  const pagination = usePagination(search.filtered);
   const [loading, setLoading] = useState(true);
 
   // Modal State — same modal doubles as Add and Edit
@@ -128,7 +131,8 @@ export default function SuppliersScreen() {
         style={{ marginTop: 4 }}
       />
       <FlatList
-        data={search.filtered}
+        data={pagination.pageRows}
+        ListFooterComponent={<Pagination {...pagination} />}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}

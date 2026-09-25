@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, TextInput, Modal, FlatList, Platform, ActivityIndicator } from "react-native";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
+import { usePagination } from "@/utils/usePagination";
+import Pagination from "@/components/common/Pagination";
 import Alert from "@/utils/alert";
 import { Feather } from "@expo/vector-icons";
 
@@ -158,6 +160,7 @@ export default function DispatchChallansPage() {
   // Determine which list to show based on active tab
   const activeList = activeTab === "pending" ? pendingChallans : dispatchedChallans;
   const search = useSearch(activeList);
+  const pagination = usePagination(search.filtered);
 
   const getExportData = () => ({
     headers: ["Challan #", "Client", "Items", "Status"],
@@ -248,6 +251,7 @@ export default function DispatchChallansPage() {
           resultCount={search.filtered.length}
           totalCount={activeList.length}
         />
+        <Pagination {...pagination} />
 
         {/* List Content / Empty State */}
         {loading ? (
@@ -258,7 +262,7 @@ export default function DispatchChallansPage() {
           </View>
         ) : (
           <View style={styles.listContainer}>
-            {search.filtered.map((challan) => (
+            {pagination.pageRows.map((challan) => (
               <View key={challan.id} style={styles.challanCard}>
                 <View>
                   <Text style={styles.challanTitle}>{challan.challan_number}</Text>

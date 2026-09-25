@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, Platform, ActivityIndicator } from "react-native";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
+import { usePagination } from "@/utils/usePagination";
+import Pagination from "@/components/common/Pagination";
 import Alert from "@/utils/alert";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams } from "expo-router";
@@ -30,6 +32,7 @@ export default function StockVsPOPage() {
   const [comparisons, setComparisons] = useState<Comparison[]>([]);
   const search = useSearch(comparisons);
   const { sorted: sortedComparisons, sortKey, sortDir, toggleSort } = useSortable<Comparison>(search.filtered);
+  const pagination = usePagination(sortedComparisons);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -170,6 +173,7 @@ export default function StockVsPOPage() {
           resultCount={search.filtered.length}
           totalCount={comparisons.length}
         />
+        <Pagination {...pagination} />
 
         {loading ? (
           <ActivityIndicator size="large" color="#8B5CF6" style={{ marginTop: 60 }} />
@@ -187,7 +191,7 @@ export default function StockVsPOPage() {
               <SortableHeaderCell label="IN STOCK" active={sortKey === "in_stock"} direction={sortDir} onPress={() => toggleSort("in_stock")} textStyle={styles.tableHeaderCell} containerStyle={{ flex: 1, justifyContent: "flex-end" }} />
               <SortableHeaderCell label="SHORTFALL" active={sortKey === "shortfall"} direction={sortDir} onPress={() => toggleSort("shortfall")} textStyle={styles.tableHeaderCell} containerStyle={{ flex: 1, justifyContent: "flex-end" }} />
             </View>
-            {sortedComparisons.map((c) => (
+            {pagination.pageRows.map((c) => (
               <View key={c.component_id} style={styles.tableRow}>
                 <View style={{ flex: 2 }}>
                   <Text style={styles.cellName}>{c.component_name}</Text>

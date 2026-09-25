@@ -10,6 +10,8 @@ import BoxService, { BoxMapping } from "@/services/boxService";
 import { useSortable } from "@/utils/useSortable";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
+import { usePagination } from "@/utils/usePagination";
+import Pagination from "@/components/common/Pagination";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
 
 interface ItemOption { id: string; name: string; item_code: string; }
@@ -77,6 +79,7 @@ export default function BoxesPage() {
 
   const search = useSearch(mappings);
   const { sorted: sortedMappings, sortKey, sortDir, toggleSort } = useSortable<BoxMapping>(search.filtered);
+  const pagination = usePagination(sortedMappings);
 
   useEffect(() => {
     fetchData();
@@ -183,6 +186,7 @@ export default function BoxesPage() {
           resultCount={search.filtered.length}
           totalCount={mappings.length}
         />
+        <Pagination {...pagination} />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
           <View style={styles.tableCard}>
             <View style={styles.tableHeader}>
@@ -199,7 +203,7 @@ export default function BoxesPage() {
                 <Text style={styles.emptyStateText}>No box mappings yet. Tap "Add Mapping" to create one.</Text>
               </View>
             ) : (
-              sortedMappings.map((m) => (
+              pagination.pageRows.map((m) => (
                 <View key={m.id} style={styles.tableRow}>
                   <View style={{ width: 180 }}>
                     <Text style={styles.cellTextBold}>{m.box_name}</Text>

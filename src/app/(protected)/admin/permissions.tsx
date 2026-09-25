@@ -5,6 +5,8 @@ import { Feather } from "@expo/vector-icons";
 import api from "@/services/api";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
+import { usePagination } from "@/utils/usePagination";
+import Pagination from "@/components/common/Pagination";
 
 interface PermissionRow { id: number; name: string; description: string | null; role_count: number; }
 
@@ -19,6 +21,7 @@ export default function PermissionsScreen() {
   const [description, setDescription] = useState("");
 
   const search = useSearch(permissions, (p) => `${p.name} ${p.description || ""}`);
+  const pagination = usePagination(search.filtered);
 
   useEffect(() => { fetchPermissions(); }, []);
 
@@ -113,7 +116,8 @@ export default function PermissionsScreen() {
       <SearchBar value={search.query} onChangeText={search.setQuery} placeholder="Search permissions..." resultCount={search.filtered.length} totalCount={permissions.length} />
 
       <FlatList
-        data={search.filtered}
+        data={pagination.pageRows}
+        ListFooterComponent={<Pagination {...pagination} />}
         keyExtractor={(item) => item.id.toString()}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
