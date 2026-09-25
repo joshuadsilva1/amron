@@ -9,9 +9,10 @@ import { Feather } from "@expo/vector-icons";
 
 import colors from "@/theme/colors";
 import spacing from "@/theme/spacing";
-import SupplierOrderService, { Supplier } from "@/services/supplierService";
+import SupplierOrderService, { Supplier, OrderableItem } from "@/services/supplierService";
 import { exportToExcel, exportToPDF } from "@/utils/export";
 import useAuthStore from "@/store/authStore";
+import SupplierOrderCard from "@/components/supplier/SupplierOrderCard";
 
 // --- Custom Dropdown Component ---
 const SelectInput = ({ label, placeholder, value, options, onSelect }: any) => {
@@ -67,21 +68,20 @@ export default function SupplierOrdersPage() {
   
   // Data from Backend
   const [departments, setDepartments] = useState([]);
-  const [items, setItems] = useState([]);
+  // What each department can order (never finished goods), loaded on
+  // demand when a department is picked.
+  const [itemsByDept, setItemsByDept] = useState<Record<string, OrderableItem[]>>({});
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
   const search = useSearch(orders);
   const pagination = usePagination(search.filtered);
 
-  // Unit Options (UI Only - Your DB doesn't save unit for supplier items currently)
-  const unitOptions = [{ id: "pcs", name: "pcs" }, { id: "kg", name: "kg" }, { id: "boxes", name: "boxes" }];
 
   // --- Single Order State ---
   const [singleDept, setSingleDept] = useState("");
   const [singleItem, setSingleItem] = useState("");
   const [singleSupplier, setSingleSupplier] = useState("");
   const [singleQty, setSingleQty] = useState("");
-  const [singleUnit, setSingleUnit] = useState("pcs");
   const [singleUrgent, setSingleUrgent] = useState(false);
   const [singleNotes, setSingleNotes] = useState("");
 
@@ -90,11 +90,9 @@ export default function SupplierOrdersPage() {
   const [clubSupplier, setClubSupplier] = useState("");
   const [clubItem, setClubItem] = useState("");
   const [clubQty, setClubQty] = useState("");
-  const [clubUnit, setClubUnit] = useState("pcs");
   const [clubUrgent, setClubUrgent] = useState(false);
   const [clubNotes, setClubNotes] = useState("");
   const [clubItemsList, setClubItemsList] = useState<any[]>([]);
-  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
   const user = useAuthStore((s) => s.user);
   const canApprove = user?.role === "PRODUCTION_MANAGER" || user?.role === "ADMIN";
@@ -103,31 +101,34 @@ export default function SupplierOrdersPage() {
     fetchData();
   }, []);
 
-  const handleOrderStatus = async (orderId: string, status: "Approved" | "Rejected") => {
-    try {
-      setUpdatingOrderId(orderId);
-      await SupplierOrderService.updateOrderStatus(orderId, status);
-      await fetchData();
-    } catch (error: any) {
-      Alert.alert("Error", error.response?.data?.error || `Failed to ${status.toLowerCase()} order.`);
-    } finally {
-      setUpdatingOrderId(null);
-    }
-  };
+  useEffect(() => {
+    [singleDept, clubDept].forEach((deptId) => {
+      if (deptId && !itemsByDept[deptId]) {
+        SupplierOrderService.getOrderableItems(deptId)
+          .then((list) => setItemsByDept((prev) => ({ ...prev, [deptId]: list })))
+          .catch(() => {});
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [singleDept, clubDept]);
+
+  const optionsFor = (deptId: string) => (itemsByDept[deptId] || []).map((i) => ({
+    id: i.id,
+    name: `${i.item_code} — ${i.name}${i.kind === "job_work" ? "  ·  made by supplier, you send material" : ""}`,
+  }));
+  const findItem = (deptId: string, itemId: string) => (itemsByDept[deptId] || []).find((i) => i.id === itemId);
 
   const fetchData = async () => {
     try {
       setLoading(true);
       // Run parallel requests
-      const [suppliersData, itemsData, deptsData, ordersData] = await Promise.all([
+      const [suppliersData, deptsData, ordersData] = await Promise.all([
         SupplierOrderService.getSuppliers(),
-        SupplierOrderService.getItems().catch(() => []), // Failsafe if endpoint doesn't exist yet
         SupplierOrderService.getDepartments().catch(() => []),
         SupplierOrderService.getOrders()
       ]);
 
       setSuppliers(suppliersData);
-      setItems(itemsData);
       setDepartments(deptsData);
       setOrders(ordersData);
     } catch (error) {
@@ -154,7 +155,7 @@ export default function SupplierOrdersPage() {
         is_urgent: singleUrgent ? 1 : 0,
         items: [{
           product_id: singleItem,
-          ordered_qty: parseInt(singleQty, 10)
+          ordered_qty: parseFloat(singleQty)
         }]
       });
       
@@ -173,13 +174,13 @@ export default function SupplierOrdersPage() {
   const handleAddClubItem = () => {
     if (!clubItem || !clubQty) return;
     
-    const itemData: any = items.find((i: any) => i.id === clubItem);
+    const itemData = findItem(clubDept, clubItem);
     
     setClubItemsList([...clubItemsList, { 
       product_id: clubItem, 
-      product_name: itemData?.name || "Item", 
-      ordered_qty: parseInt(clubQty, 10), 
-      unit: clubUnit, 
+      product_name: itemData ? `${itemData.item_code} — ${itemData.name}` : "Item",
+      ordered_qty: parseFloat(clubQty),
+      unit: itemData?.unit_of_measure || "", 
       is_urgent: clubUrgent 
     }]);
     
@@ -222,11 +223,12 @@ export default function SupplierOrdersPage() {
   };
 
   const getExportData = () => ({
-    headers: ["Order #", "Supplier", "Items", "Urgent", "Status"],
+    headers: ["Order #", "Supplier", "Expected (received / ordered)", "Material to send (sent / planned)", "Urgent", "Status"],
     rows: orders.map((o: any) => [
       `Order #${o.id.substring(0, 6).toUpperCase()}`,
       o.supplier_name,
-      o.items?.length || 0,
+      (o.items || []).map((i: any) => `${i.item_code || i.product_name}: ${i.received_qty}/${i.ordered_qty} ${i.unit_of_measure || ""}`).join("; "),
+      (o.materials_to_send || []).map((m: any) => `${m.item_code || m.name}: ${m.sent_qty}/${m.quantity} ${m.unit_of_measure || ""}`).join("; ") || "-",
       o.is_urgent === 1 ? "Yes" : "No",
       o.status,
     ]),
@@ -276,17 +278,17 @@ export default function SupplierOrdersPage() {
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Place an order</Text>
             
-            <SelectInput label="Ordering department" placeholder="Department..." value={singleDept} options={departments} onSelect={setSingleDept} />
-            <SelectInput label="Item" placeholder="Select item..." value={singleItem} options={items} onSelect={setSingleItem} />
+            <SelectInput label="Ordering department" placeholder="Department..." value={singleDept} options={departments} onSelect={(v: string) => { setSingleDept(v); setSingleItem(""); }} />
+            <SelectInput label="Item" placeholder={singleDept ? "Select item..." : "Pick a department first"} value={singleItem} options={optionsFor(singleDept)} onSelect={setSingleItem} />
             <SelectInput label="Supplier" placeholder="Assign supplier..." value={singleSupplier} options={suppliers} onSelect={setSingleSupplier} />
             
             <View style={styles.row}>
               <View style={[styles.inputGroup, { flex: 1 }]}>
                 <Text style={styles.label}>Quantity</Text>
-                <TextInput style={styles.textInputBox} value={singleQty} onChangeText={setSingleQty} keyboardType="numeric" />
-              </View>
-              <View style={[styles.inputGroup, { flex: 1, marginLeft: spacing.md }]}>
-                <SelectInput label="Unit" placeholder="pcs" value={singleUnit} options={unitOptions} onSelect={setSingleUnit} />
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <TextInput style={[styles.textInputBox, { flex: 1 }]} value={singleQty} onChangeText={(t) => setSingleQty(t.replace(/[^0-9.]/g, ""))} keyboardType="decimal-pad" />
+                  <Text style={styles.label}>{findItem(singleDept, singleItem)?.unit_of_measure || ""}</Text>
+                </View>
               </View>
             </View>
 
@@ -311,22 +313,19 @@ export default function SupplierOrdersPage() {
             </Text>
 
             <View style={styles.row}>
-              <View style={{ flex: 1 }}><SelectInput label="Department" placeholder="Dept..." value={clubDept} options={departments} onSelect={setClubDept} /></View>
+              <View style={{ flex: 1 }}><SelectInput label="Department" placeholder="Dept..." value={clubDept} options={departments} onSelect={(v: string) => { setClubDept(v); setClubItem(""); setClubItemsList([]); }} /></View>
               <View style={{ width: spacing.md }} />
               <View style={{ flex: 1 }}><SelectInput label="Supplier" placeholder="Supplier..." value={clubSupplier} options={suppliers} onSelect={setClubSupplier} /></View>
             </View>
 
             <View style={styles.innerCard}>
               <Text style={styles.innerCardTitle}>Add item to club</Text>
-              <SelectInput placeholder="Select item..." value={clubItem} options={items} onSelect={setClubItem} />
+              <SelectInput placeholder={clubDept ? "Select item..." : "Pick a department first"} value={clubItem} options={optionsFor(clubDept)} onSelect={setClubItem} />
               
               <View style={styles.row}>
-                <View style={{ flex: 1 }}>
-                  <TextInput style={styles.textInputBox} placeholder="Qty" value={clubQty} onChangeText={setClubQty} keyboardType="numeric" />
-                </View>
-                <View style={{ width: spacing.md }} />
-                <View style={{ flex: 1 }}>
-                  <SelectInput placeholder="pcs" value={clubUnit} options={unitOptions} onSelect={setClubUnit} />
+                <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  <TextInput style={[styles.textInputBox, { flex: 1 }]} placeholder="Qty" value={clubQty} onChangeText={(t) => setClubQty(t.replace(/[^0-9.]/g, ""))} keyboardType="decimal-pad" />
+                  <Text style={styles.label}>{findItem(clubDept, clubItem)?.unit_of_measure || ""}</Text>
                 </View>
               </View>
 
@@ -385,43 +384,7 @@ export default function SupplierOrdersPage() {
               <Text style={styles.emptyText}>No orders yet.</Text>
             ) : (
               pagination.pageRows.map((o: any) => (
-                <View key={o.id} style={styles.orderRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.orderNumber}>
-                      Order #{o.id.substring(0,6).toUpperCase()}
-                      {o.is_urgent === 1 && <Text style={{ color: "#EF4444", fontSize: 12 }}> URGENT</Text>}
-                    </Text>
-                    <Text style={styles.orderSupplier}>{o.supplier_name} • {o.items?.length || 0} items</Text>
-                  </View>
-
-                  {canApprove && o.status === "Pending" ? (
-                    updatingOrderId === o.id ? (
-                      <ActivityIndicator size="small" color={colors.primary} />
-                    ) : (
-                      <View style={styles.approvalActions}>
-                        <Pressable style={styles.rejectBtn} onPress={() => handleOrderStatus(o.id, "Rejected")}>
-                          <Feather name="x" size={14} color="#EF4444" />
-                        </Pressable>
-                        <Pressable style={styles.approveBtn} onPress={() => handleOrderStatus(o.id, "Approved")}>
-                          <Feather name="check" size={14} color={colors.white} />
-                          <Text style={styles.approveBtnText}>Approve</Text>
-                        </Pressable>
-                      </View>
-                    )
-                  ) : (
-                    <View style={[
-                      styles.statusBadge,
-                      o.status === "Approved" && styles.statusBadgeApproved,
-                      o.status === "Rejected" && styles.statusBadgeRejected,
-                    ]}>
-                      <Text style={[
-                        styles.statusText,
-                        o.status === "Approved" && styles.statusTextApproved,
-                        o.status === "Rejected" && styles.statusTextRejected,
-                      ]}>{o.status}</Text>
-                    </View>
-                  )}
-                </View>
+                <SupplierOrderCard key={o.id} order={o} canApprove={canApprove} showDepartment={true} onChanged={fetchData} />
               ))
             )}
           </View>

@@ -13,6 +13,7 @@ import spacing from "@/theme/spacing";
 import SupplierOrderService, { OrderableItem, MaterialToSend } from "@/services/supplierService";
 import { exportToExcel, exportToPDF } from "@/utils/export";
 import useAuthStore from "@/store/authStore";
+import SupplierOrderCard from "@/components/supplier/SupplierOrderCard";
 
 // --- Custom Dropdown Component ---
 const SelectInput = ({ label, placeholder, value, options, onSelect }: any) => {
@@ -100,7 +101,6 @@ export default function DepartmentSupplierOrdersPage() {
   const [clubUrgent, setClubUrgent] = useState(false);
   const [clubNotes, setClubNotes] = useState("");
   const [clubItemsList, setClubItemsList] = useState<any[]>([]);
-  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
   const user = useAuthStore((s) => s.user);
   const canApprove = user?.role === "PRODUCTION_MANAGER" || user?.role === "ADMIN";
@@ -124,18 +124,6 @@ export default function DepartmentSupplierOrdersPage() {
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [singleItem, singleQty, items]);
-
-  const handleOrderStatus = async (orderId: string, status: "Approved" | "Rejected") => {
-    try {
-      setUpdatingOrderId(orderId);
-      await SupplierOrderService.updateOrderStatus(orderId, status);
-      await fetchData();
-    } catch (error: any) {
-      Alert.alert("Error", error.response?.data?.error || `Failed to ${status.toLowerCase()} order.`);
-    } finally {
-      setUpdatingOrderId(null);
-    }
-  };
 
   const fetchData = async () => {
     try {
@@ -249,11 +237,12 @@ export default function DepartmentSupplierOrdersPage() {
   };
 
   const getExportData = () => ({
-    headers: ["Order #", "Supplier", "Items", "Urgent", "Status"],
+    headers: ["Order #", "Supplier", "Expected (received / ordered)", "Material to send (sent / planned)", "Urgent", "Status"],
     rows: orders.map((o: any) => [
       `Order #${String(o.id).substring(0, 6).toUpperCase()}`,
       o.supplier_name,
-      o.items?.length || 0,
+      (o.items || []).map((i: any) => `${i.item_code || i.product_name}: ${i.received_qty}/${i.ordered_qty} ${i.unit_of_measure || ""}`).join("; "),
+      (o.materials_to_send || []).map((m: any) => `${m.item_code || m.name}: ${m.sent_qty}/${m.quantity} ${m.unit_of_measure || ""}`).join("; ") || "-",
       o.is_urgent === 1 ? "Yes" : "No",
       o.status,
     ]),
@@ -464,53 +453,7 @@ export default function DepartmentSupplierOrdersPage() {
               <Text style={styles.emptyText}>No {departmentName} orders yet.</Text>
             ) : (
               pagination.pageRows.map((o: any) => (
-                <View key={o.id} style={styles.orderRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.orderNumber}>
-                      Order #{String(o.id).substring(0,6).toUpperCase()}
-                      {o.is_urgent === 1 && <Text style={{ color: "#EF4444", fontSize: 12 }}> URGENT</Text>}
-                    </Text>
-                    <Text style={styles.orderSupplier}>{o.supplier_name}</Text>
-                    {(o.items || []).map((it: any, idx: number) => (
-                      <Text key={idx} style={styles.orderLine}>
-                        {it.item_code ? `${it.item_code} — ` : ""}{it.product_name}: {it.ordered_qty} {it.unit_of_measure || ""}
-                      </Text>
-                    ))}
-                    {(o.materials_to_send || []).length > 0 && (
-                      <Text style={styles.orderSend}>
-                        Send supplier: {o.materials_to_send.map((m: any) => `${m.quantity} ${m.unit_of_measure || ""} ${m.name}`).join(", ")}
-                      </Text>
-                    )}
-                  </View>
-
-                  {canApprove && o.status === "Pending" ? (
-                    updatingOrderId === o.id ? (
-                      <ActivityIndicator size="small" color="#8B5CF6" />
-                    ) : (
-                      <View style={styles.approvalActions}>
-                        <Pressable style={styles.rejectBtn} onPress={() => handleOrderStatus(o.id, "Rejected")}>
-                          <Feather name="x" size={14} color="#EF4444" />
-                        </Pressable>
-                        <Pressable style={styles.approveBtn} onPress={() => handleOrderStatus(o.id, "Approved")}>
-                          <Feather name="check" size={14} color={colors.white} />
-                          <Text style={styles.approveBtnText}>Approve</Text>
-                        </Pressable>
-                      </View>
-                    )
-                  ) : (
-                    <View style={[
-                      styles.statusBadge,
-                      o.status === "Approved" && styles.statusBadgeApproved,
-                      o.status === "Rejected" && styles.statusBadgeRejected,
-                    ]}>
-                      <Text style={[
-                        styles.statusText,
-                        o.status === "Approved" && styles.statusTextApproved,
-                        o.status === "Rejected" && styles.statusTextRejected,
-                      ]}>{o.status}</Text>
-                    </View>
-                  )}
-                </View>
+                <SupplierOrderCard key={o.id} order={o} canApprove={canApprove} showDepartment={false} onChanged={fetchData} />
               ))
             )}
           </View>

@@ -95,6 +95,19 @@ export default class SupplierOrderService {
     return response.data.data;
   }
 
+  // Job work: material leaves our stock for the supplier. Omit
+  // `materials` to send everything still unsent.
+  static async sendMaterial(orderId: string, materials?: { product_id: string; quantity: number }[]) {
+    const response = await api.post(`/suppliers/orders/${orderId}/send-material`, { materials });
+    return response.data as { status: string; message: string };
+  }
+
+  // Goods arrive from the supplier into the ordering department's stock.
+  static async receiveOrder(orderId: string, items?: { product_id: string; quantity: number }[]) {
+    const response = await api.post(`/suppliers/orders/${orderId}/receive`, { items });
+    return response.data as { status: string; message: string };
+  }
+
   static async placeOrder(payload: SupplierOrderPayload) {
     const response = await api.post("/suppliers/orders", payload);
     return response.data;
