@@ -8,7 +8,7 @@ import Alert from "@/utils/alert";
 import { Feather } from "@expo/vector-icons";
 import api from "@/services/api";
 
-interface Department { id: string; name: string; department_code: number; level: number; blocks_white_parts?: boolean; }
+interface Department { id: string; name: string; department_code: number; level: number; blocks_white_parts?: boolean; tracks_stock?: boolean; }
 interface Level { id: number; name: string; rank: number; is_final: boolean; }
 
 export default function DepartmentsManagementScreen() {
@@ -23,6 +23,8 @@ export default function DepartmentsManagementScreen() {
   const [editingDept, setEditingDept] = useState<Department | null>(null);
   // The Colour department: White moulded parts can never be sent here.
   const [blocksWhite, setBlocksWhite] = useState(false);
+  // Off for e.g. Label (labels, pouches, boxes): no stock kept.
+  const [tracksStock, setTracksStock] = useState(true);
   const [newName, setNewName] = useState("");
   const [newCode, setNewCode] = useState("");
   const [selectedLevel, setSelectedLevel] = useState<number>(0);
@@ -69,6 +71,7 @@ export default function DepartmentsManagementScreen() {
     setNewCode("");
     setSelectedLevel(levels[0]?.rank ?? 0);
     setBlocksWhite(false);
+    setTracksStock(true);
     setModalVisible(true);
   };
 
@@ -78,6 +81,7 @@ export default function DepartmentsManagementScreen() {
     setNewCode(String(dept.department_code ?? ""));
     setSelectedLevel(dept.level);
     setBlocksWhite(!!dept.blocks_white_parts);
+    setTracksStock(dept.tracks_stock !== false);
     setModalVisible(true);
   };
 
@@ -94,6 +98,7 @@ export default function DepartmentsManagementScreen() {
         name: newName.trim(),
         department_level: selectedLevel,
         blocks_white_parts: blocksWhite,
+        tracks_stock: tracksStock,
       };
       if (newCode.trim() !== "") {
         payload.department_code = parseInt(newCode, 10);
@@ -242,6 +247,7 @@ export default function DepartmentsManagementScreen() {
                 <Text style={styles.subtext}>
                   Code: {item.department_code}  •  Level: {getLevelName(item.level)}
                   {item.blocks_white_parts ? "  •  Grey/Black parts only" : ""}
+                  {item.tracks_stock === false ? "  •  No stock tracking" : ""}
                 </Text>
               </View>
             </Pressable>
@@ -325,6 +331,14 @@ export default function DepartmentsManagementScreen() {
                 <Text style={styles.helperText}>White moulded parts can never be sent here or used in this department's recipes.</Text>
               </View>
               <Switch value={blocksWhite} onValueChange={setBlocksWhite} trackColor={{ false: "#E5E7EB", true: "#8B5CF6" }} />
+            </View>
+
+            <View style={[styles.inputGroup, { flexDirection: "row", alignItems: "center", gap: 12 }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.inputLabel}>Track stock</Text>
+                <Text style={styles.helperText}>Turn off for departments like Label (labels, pouches, boxes): production won't need or use up their stock, and MRP ignores them.</Text>
+              </View>
+              <Switch value={tracksStock} onValueChange={setTracksStock} trackColor={{ false: "#E5E7EB", true: "#8B5CF6" }} />
             </View>
 
             <Pressable
