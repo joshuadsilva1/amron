@@ -15,6 +15,7 @@ import { useSortable } from "@/utils/useSortable";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
+import { ExcelImportButton } from "@/components/import/ExcelImport";
 import Pagination from "@/components/common/Pagination";
 import { usePagination } from "@/utils/usePagination";
 
@@ -218,6 +219,7 @@ export default function OEMConversionPage() {
             </Text>
           </View>
           <View style={styles.headerActions}>
+            <ExcelImportButton moduleIds={["purchase-orders"]} label="Import POs" onImported={fetchData} />
             <Pressable style={styles.newPoBtn} onPress={() => router.push("/(protected)/manager/purchase-order/new")}>
               <Feather name="plus" size={14} color={colors.white} style={{ marginRight: 6 }} />
               <Text style={styles.newPoBtnText}>New PO</Text>

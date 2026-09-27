@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, Modal } from "react-native";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
+import { ExcelImportButton } from "@/components/import/ExcelImport";
 import { usePagination } from "@/utils/usePagination";
 import Pagination from "@/components/common/Pagination";
 import { Feather } from "@expo/vector-icons";
@@ -64,10 +65,13 @@ export default function RecipesListPage() {
             <Text style={styles.title}>Recipes (BOM)</Text>
             <Text style={styles.subtitle}>Bills of material — finished goods and intermediate components can each have their own recipe, so a BOM can nest multiple levels deep.</Text>
           </View>
-          <Pressable style={styles.addBtn} onPress={() => router.push("/(protected)/manager/recipes/new")}>
-            <Feather name="plus" size={16} color={colors.white} style={{ marginRight: 6 }} />
-            <Text style={styles.addBtnText}>New recipe</Text>
-          </Pressable>
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <ExcelImportButton moduleIds={["recipes", "items"]} onImported={fetchRecipes} />
+            <Pressable style={styles.addBtn} onPress={() => router.push("/(protected)/manager/recipes/new")}>
+              <Feather name="plus" size={16} color={colors.white} style={{ marginRight: 6 }} />
+              <Text style={styles.addBtnText}>New recipe</Text>
+            </Pressable>
+          </View>
         </View>
 
         <SearchBar

@@ -10,6 +10,7 @@ import { useSortable } from "@/utils/useSortable";
 import SearchBar from "@/components/common/SearchBar";
 import { useSearch } from "@/utils/useSearch";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
+import { ExcelImportButton } from "@/components/import/ExcelImport";
 import Pagination from "@/components/common/Pagination";
 import { usePagination } from "@/utils/usePagination";
 import ItemService, { UnitOfMeasure } from "@/services/itemService";
@@ -330,10 +331,13 @@ export default function ItemsPage() {
               Your master list of finished goods and raw materials. OEM mapping happens in the Client portal.
             </Text>
           </View>
+          <View style={{ flexDirection: "row", gap: 10 }}>
+          <ExcelImportButton moduleIds={["items", "rack-stock"]} departmentId={activeDept?.id} onImported={fetchData} />
           <Pressable style={styles.primaryBtn} onPress={() => openEditModal()}>
             <Feather name="plus" size={16} color={colors.white} style={{ marginRight: 6 }} />
             <Text style={styles.primaryBtnText}>Add item</Text>
           </Pressable>
+          </View>
         </View>
 
         <View style={styles.tabsContainer}>

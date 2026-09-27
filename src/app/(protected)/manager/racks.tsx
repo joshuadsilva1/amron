@@ -12,6 +12,7 @@ import { useSearch } from "@/utils/useSearch";
 import { usePagination } from "@/utils/usePagination";
 import Pagination from "@/components/common/Pagination";
 import SortableHeaderCell from "@/components/common/SortableHeaderCell";
+import { ExcelImportButton } from "@/components/import/ExcelImport";
 
 const SelectInput = ({ label, placeholder, value, options, onSelect }: any) => {
   const [modalVisible, setModalVisible] = useState(false);
@@ -169,10 +170,13 @@ export default function ManageRacksPage() {
               Manage physical storage locations across the factory and print QR codes for shelves.
             </Text>
           </View>
+          <View style={{ flexDirection: "row", gap: 10 }}>
+          <ExcelImportButton moduleIds={["racks", "rack-stock"]} onImported={fetchData} />
           <Pressable style={styles.primaryBtn} onPress={() => openEditModal()}>
             <Feather name="plus" size={16} color={colors.white} style={{ marginRight: 6 }} />
             <Text style={styles.primaryBtnText}>Add rack</Text>
           </Pressable>
+          </View>
         </View>
 
         <View style={styles.tabsContainer}>

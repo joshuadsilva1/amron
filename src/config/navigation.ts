@@ -86,7 +86,6 @@ export const NAV_GROUPS_POST: NavGroup[] = [
       { title: "Racks", icon: "rack", route: "/(protected)/manager/racks" },
       { title: "Boxes", icon: "package", route: "/(protected)/manager/boxes" },
       { title: "Transaction History", icon: "clock", route: "/(protected)/manager/transaction-history" },
-      { title: "Import from Excel", icon: "download", route: "/(protected)/manager/import" },
     ],
   },
   {
