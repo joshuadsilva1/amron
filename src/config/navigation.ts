@@ -45,7 +45,8 @@ export const NAV_GROUPS_PRE: NavGroup[] = [
     groupIcon: "list",
     items: [
       { title: "Recipes (BOM)", icon: "list", route: "/(protected)/manager/recipes" },
-      { title: "Material Requirements", icon: "alert-triangle", route: "/(protected)/manager/mrp" },
+      { title: "Material Requirements", icon: "clipboard", route: "/(protected)/manager/material-requirements" },
+      { title: "Shortages (MRP)", icon: "alert-triangle", route: "/(protected)/manager/mrp" },
       { title: "Production Planning", icon: "calendar", route: "/(protected)/manager/production" },
     ],
   },
@@ -115,7 +116,7 @@ export const NAV_GROUPS_POST: NavGroup[] = [
 // it off downstream, keep the physical count honest.
 export const SUB_MENU = [
   { title: "Internal PO", icon: "inbox", routeSuffix: "internal-po" },
-  { title: "Stock vs PO", icon: "activity", routeSuffix: "stock-po" },
+  { title: "Material Requirements", icon: "activity", routeSuffix: "stock-po" },
   { title: "Order Materials", icon: "truck", routeSuffix: "suppliers" },
   { title: "Work Allotment", icon: "list", routeSuffix: "work-allotment" },
   { title: "Log Production", icon: "cpu", routeSuffix: "produce" },
