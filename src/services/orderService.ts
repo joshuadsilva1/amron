@@ -36,6 +36,7 @@ export interface POItemPayload {
   product_id?: string;
   client_product_code?: string;
   quantity: number;
+  is_urgent?: boolean;
 }
 
 export interface CreatePOPayload {

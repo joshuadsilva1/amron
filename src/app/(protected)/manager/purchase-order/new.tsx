@@ -80,6 +80,8 @@ interface ProductRow {
 
 interface Line extends ProductRow {
   quantity: string;
+  // Urgency is per product, not the whole order.
+  is_urgent: boolean;
 }
 
 // Table-in-a-modal for choosing which finished goods the client ordered.
@@ -213,7 +215,6 @@ export default function NewPOScreen() {
 
   const [clientId, setClientId] = useState("");
   const [notes, setNotes] = useState("");
-  const [isUrgent, setIsUrgent] = useState(false);
   const [dueDate, setDueDate] = useState("");
   const [challanNumber, setChallanNumber] = useState("");
   const [sendNow, setSendNow] = useState(true);
@@ -263,12 +264,16 @@ export default function NewPOScreen() {
   }, [clientId, mappings, finishedGoods, recipeIds]);
 
   const addLines = (rows: ProductRow[]) => {
-    setLines((prev) => [...prev, ...rows.map((r) => ({ ...r, quantity: "" }))]);
+    setLines((prev) => [...prev, ...rows.map((r) => ({ ...r, quantity: "", is_urgent: false }))]);
     setPickerOpen(false);
   };
 
   const updateLine = (productId: string, field: "quantity" | "client_code", value: string) => {
     setLines((prev) => prev.map((l) => (l.product_id === productId ? { ...l, [field]: value } : l)));
+  };
+
+  const toggleUrgent = (productId: string) => {
+    setLines((prev) => prev.map((l) => (l.product_id === productId ? { ...l, is_urgent: !l.is_urgent } : l)));
   };
 
   const removeLine = (productId: string) => {
@@ -297,13 +302,14 @@ export default function NewPOScreen() {
       const result = await OrderService.createPO({
         client_id: clientId,
         notes,
-        is_urgent: isUrgent ? 1 : 0,
+        is_urgent: 0,
         due_date: dueDate.trim() || undefined,
         challan_number: challanNumber.trim() || undefined,
         items: lines.map((l) => ({
           product_id: l.product_id,
           client_product_code: l.client_code.trim() || undefined,
           quantity: parseInt(l.quantity, 10),
+          is_urgent: l.is_urgent,
         })),
         send_to_departments: sendNow,
       });
@@ -380,14 +386,6 @@ export default function NewPOScreen() {
           placeholderTextColor="#9CA3AF"
         />
 
-        <View style={styles.switchRow}>
-          <Text style={styles.label}>Mark as urgent</Text>
-          <Switch
-            value={isUrgent}
-            onValueChange={setIsUrgent}
-            trackColor={{ false: "#E5E7EB", true: "#EF4444" }}
-          />
-        </View>
       </View>
 
       <View style={styles.card}>
@@ -415,13 +413,14 @@ export default function NewPOScreen() {
           </Pressable>
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={{ minWidth: 760, flex: 1 }}>
+            <View style={{ minWidth: 860, flex: 1 }}>
               <View style={styles.tableHeader}>
                 <Text style={[styles.columnHeader, { width: 140 }]}>CLIENT CODE</Text>
                 <Text style={[styles.columnHeader, { width: 100 }]}>OUR CODE</Text>
                 <Text style={[styles.columnHeader, { flex: 1, minWidth: 180 }]}>PRODUCT</Text>
                 <Text style={[styles.columnHeader, { width: 170 }]}>QUANTITY</Text>
                 <Text style={[styles.columnHeader, { width: 90 }]}>RECIPE</Text>
+                <Text style={[styles.columnHeader, { width: 90 }]}>URGENT</Text>
                 <View style={{ width: 36 }} />
               </View>
               {lines.map((line) => (
@@ -455,6 +454,15 @@ export default function NewPOScreen() {
                     <Text style={[styles.recipeTag, !line.has_recipe && styles.recipeTagMissing]}>
                       {line.has_recipe ? "Ready" : "No recipe"}
                     </Text>
+                  </View>
+                  <View style={{ width: 90 }}>
+                    <Pressable
+                      style={[styles.urgentChip, line.is_urgent && styles.urgentChipActive]}
+                      onPress={() => toggleUrgent(line.product_id)}
+                    >
+                      <Feather name="zap" size={12} color={line.is_urgent ? colors.white : "#9CA3AF"} />
+                      <Text style={[styles.urgentChipText, line.is_urgent && { color: colors.white }]}>{line.is_urgent ? "Urgent" : "Normal"}</Text>
+                    </Pressable>
                   </View>
                   <Pressable style={{ width: 36, alignItems: "center" }} onPress={() => removeLine(line.product_id)} hitSlop={8}>
                     <Feather name="trash-2" size={16} color="#EF4444" />
@@ -542,6 +550,9 @@ const styles = StyleSheet.create({
   cellInput: { backgroundColor: "#F9FAFB", borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 8, height: 38, paddingHorizontal: 10, fontSize: 14, color: "#111111" },
   unitText: { fontSize: 13, fontWeight: "600", color: "#6B7280" },
 
+  urgentChip: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", borderWidth: 1, borderColor: "#E5E7EB", borderRadius: 12, paddingVertical: 4, paddingHorizontal: 8 },
+  urgentChipActive: { backgroundColor: "#EF4444", borderColor: "#EF4444" },
+  urgentChipText: { fontSize: 11, fontWeight: "700", color: "#6B7280" },
   recipeTag: { alignSelf: "flex-start", fontSize: 11, fontWeight: "700", color: "#166534", backgroundColor: "#DCFCE7", paddingVertical: 3, paddingHorizontal: 8, borderRadius: 10, overflow: "hidden" },
   recipeTagMissing: { color: "#92400E", backgroundColor: "#FEF3C7" },
 

@@ -135,7 +135,10 @@ export default function InternalPOPage() {
                   return (
                     <View key={item.id} style={styles.itemRow}>
                       <View style={styles.itemHeaderRow}>
-                        <Text style={styles.itemName}>{item.component_name || item.component_id}</Text>
+                        <Text style={styles.itemName}>
+                          {item.is_urgent && <Text style={{ color: "#DC2626", fontWeight: "800" }}>URGENT  </Text>}
+                          {item.component_name || item.component_id}
+                        </Text>
                         <Text style={styles.itemCode}>{item.component_code}</Text>
                       </View>
                       <View style={styles.progressTrack}>

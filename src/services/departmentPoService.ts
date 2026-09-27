@@ -8,6 +8,8 @@ export interface DepartmentPOItem {
   unit_of_measure: string | null;
   quantity_requested: number;
   quantity_fulfilled: number;
+  // Needed for an urgent customer-PO line.
+  is_urgent?: boolean;
 }
 
 export interface DepartmentPO {
