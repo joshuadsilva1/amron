@@ -57,6 +57,7 @@ export default function ManageRacksPage() {
   const [loading, setLoading] = useState(true);
   const [racks, setRacks] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState("All");
 
   const [selectedRack, setSelectedRack] = useState<any | null>(null);
@@ -67,6 +68,8 @@ export default function ManageRacksPage() {
   const [form, setForm] = useState({
     rack_code: "",
     department_id: "",
+    // The product this rack holds (optional).
+    product_id: "",
     description: "",
     max_capacity_kg: "0"
   });
@@ -78,12 +81,14 @@ export default function ManageRacksPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [racksRes, deptsRes] = await Promise.all([
+      const [racksRes, deptsRes, itemsRes] = await Promise.all([
         api.get('/racks'),
-        api.get('/departments')
+        api.get('/departments'),
+        api.get('/items').catch(() => null),
       ]);
       setRacks(racksRes.data?.data || []);
       setDepartments(deptsRes.data?.data || []);
+      setProducts(itemsRes?.data?.data || []);
     } catch (error) {
       console.error("Failed to load racks", error);
     } finally {
@@ -108,12 +113,13 @@ export default function ManageRacksPage() {
       setForm({
         rack_code: rack.rack_code || "",
         department_id: rack.department_id || "",
+        product_id: rack.product_id || "",
         description: rack.description || "",
         max_capacity_kg: String(rack.max_capacity_kg || "0"),
       });
     } else {
       setSelectedRack(null);
-      setForm({ rack_code: "", department_id: "", description: "", max_capacity_kg: "0" });
+      setForm({ rack_code: "", department_id: "", product_id: "", description: "", max_capacity_kg: "0" });
     }
     setEditModalVisible(true);
   };
@@ -133,7 +139,8 @@ export default function ManageRacksPage() {
       setIsSaving(true);
       const payload = {
         ...form,
-        max_capacity_kg: parseFloat(form.max_capacity_kg) || 0.0
+        max_capacity_kg: parseFloat(form.max_capacity_kg) || 0.0,
+        product_id: form.product_id || null,
       };
 
       if (selectedRack?.id) {
@@ -198,6 +205,7 @@ export default function ManageRacksPage() {
             <View style={styles.tableHeader}>
               <SortableHeaderCell label="RACK CODE" active={sortKey === "rack_code"} direction={sortDir} onPress={() => toggleSort("rack_code")} textStyle={styles.columnHeader} containerStyle={{ width: 120 }} />
               <Text style={[styles.columnHeader, { width: 150 }]}>DEPARTMENT</Text>
+              <SortableHeaderCell label="PRODUCT CODE" active={sortKey === "product_code"} direction={sortDir} onPress={() => toggleSort("product_code")} textStyle={styles.columnHeader} containerStyle={{ width: 200 }} />
               <SortableHeaderCell label="DESCRIPTION" active={sortKey === "description"} direction={sortDir} onPress={() => toggleSort("description")} textStyle={styles.columnHeader} containerStyle={{ flex: 1, minWidth: 200 }} />
               <SortableHeaderCell label="CAPACITY" active={sortKey === "max_capacity_kg"} direction={sortDir} onPress={() => toggleSort("max_capacity_kg")} textStyle={styles.columnHeader} containerStyle={{ width: 100 }} />
               <Text style={[styles.columnHeader, { width: 100, textAlign: 'right' }]}>ACTIONS</Text>
@@ -218,6 +226,11 @@ export default function ManageRacksPage() {
                     <View style={styles.deptBadge}>
                       <Text style={styles.deptBadgeText}>{getDepartmentName(rack.department_id)}</Text>
                     </View>
+                  </View>
+
+                  <View style={{ width: 200, paddingRight: 8 }}>
+                    <Text style={[styles.cellText, { fontWeight: "600", color: "#111111" }]}>{rack.product_code || "-"}</Text>
+                    {!!rack.product_name && <Text style={[styles.cellText, { fontSize: 12, color: "#9CA3AF" }]} numberOfLines={1}>{rack.product_name}</Text>}
                   </View>
 
                   <Text style={[styles.cellText, { flex: 1, minWidth: 200, color: "#6B7280" }]} numberOfLines={1}>
@@ -316,6 +329,19 @@ export default function ManageRacksPage() {
               </View>
             </View>
 
+            <SelectInput
+              label="Product (optional)"
+              placeholder="Which product this rack holds"
+              value={form.product_id}
+              options={[
+                { id: "", name: "— None (mixed rack) —" },
+                ...products
+                  .filter((p) => !form.department_id || p.department_id === form.department_id)
+                  .map((p) => ({ id: p.id, name: `${p.item_code} — ${p.name}` })),
+              ]}
+              onSelect={(val: string) => setForm({ ...form, product_id: val })}
+            />
+
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Description</Text>
               <TextInput 
@@ -370,7 +396,7 @@ const styles = StyleSheet.create({
   tabTextActive: { color: "#111111", fontWeight: "600" },
 
   tableWrapper: { width: "100%" },
-  tableCard: { minWidth: 700, flex: 1, backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 2, overflow: "hidden", minHeight: 300 },
+  tableCard: { minWidth: 900, flex: 1, backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 2, overflow: "hidden", minHeight: 300 },
   tableHeader: { flexDirection: "row", backgroundColor: "#F9FAFB", paddingVertical: 14, paddingHorizontal: spacing.xl, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
   columnHeader: { fontSize: 12, fontWeight: "700", color: "#6B7280", letterSpacing: 0.5 },
   
