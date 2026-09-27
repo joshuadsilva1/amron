@@ -16,7 +16,7 @@ import { exportToExcel } from "@/utils/export";
 export type ImportModuleId = "items" | "racks" | "rack-stock" | "recipes" | "purchase-orders";
 
 // Item templates differ by what kind of department the items live in.
-type ItemTemplateKind = "parts" | "made_from" | "finished" | "raw";
+type ItemTemplateKind = "parts" | "made_from" | "finished" | "raw" | "general";
 
 const ITEM_TEMPLATES: Record<ItemTemplateKind, { label: string; hint: string; headers: string[] }> = {
   parts: {
@@ -36,8 +36,13 @@ const ITEM_TEMPLATES: Record<ItemTemplateKind, { label: string; hint: string; he
   },
   raw: {
     label: "Raw material",
-    hint: "Powder etc. MATERIAL = White / Grey / Black.",
-    headers: ["CODE", "NAME", "MATERIAL", "UNIT"],
+    hint: "Powder etc. MATERIAL = White / Grey / Black. REORDER_LEVEL = warn when stock falls below this.",
+    headers: ["CODE", "NAME", "MATERIAL", "UNIT", "REORDER_LEVEL"],
+  },
+  general: {
+    label: "General",
+    hint: "Any department — the columns from your Items / Products sheet.",
+    headers: ["CODE", "NAME", "MATERIAL", "UNIT", "PRICE", "PCS_PER_SCAN", "REORDER_LEVEL"],
   },
 };
 
@@ -59,23 +64,23 @@ const MODULES: Record<ImportModuleId, {
     title: "Recipes (BOM)",
     endpoint: "recipes",
     requiresDepartment: false,
-    description: "One row per component. Write FINISHED_GOOD_CODE once and leave it blank (or merged) on that product's following rows. QTY_PER_UNIT is usually 1 — use 2 when two of the same part are needed.",
-    headers: ["FINISHED_GOOD_CODE", "COMPONENT_CODE", "DEPARTMENT", "QTY_PER_UNIT"],
+    description: "One row per component. Write FINISHED_GOOD_CODE once and leave it blank (or merged) on that product's following rows. COMPONENT_CODE or COMPONENT_NAME identifies the part. QTY_PER_UNIT is usually 1 — use 2 when two of the same part are needed.",
+    headers: ["FINISHED_GOOD_CODE", "COMPONENT_NAME", "COMPONENT_CODE", "DEPARTMENT", "QTY_PER_UNIT"],
     mergeDownColumn: 0,
   },
   "purchase-orders": {
     title: "Customer POs",
     endpoint: "purchase-orders",
     requiresDepartment: false,
-    description: "One row per product. Rows with the same PO_REF (the client's PO number) become one order. FINAL_AMOUNT = QUANTITY × PER_PIECE_AMOUNT — fill either. Orders are sent to departments as soon as they're imported.",
-    headers: ["PO_REF", "CLIENT_NAME", "CLIENT_PRODUCT_CODE", "COMPONENT_NAME", "QUANTITY", "PER_PIECE_AMOUNT", "FINAL_AMOUNT", "DUE_DATE", "IS_URGENT", "NOTES"],
+    description: "One row per product. Each client's block of rows is one order — leave CLIENT_NAME blank to continue the order above. No PO or challan number needed. PRICE is per piece; FINAL_AMOUNT = QUANTITY × PRICE (fill either). Orders go to departments as soon as they're imported.",
+    headers: ["CLIENT_NAME", "CLIENT_PRODUCT_CODE", "QUANTITY", "DUE_DATE", "IS_URGENT", "NOTES", "PRICE", "FINAL_AMOUNT"],
   },
   racks: {
     title: "Racks",
     endpoint: "racks",
     requiresDepartment: true,
-    description: "Bulk-create storage racks for a department. Existing rack codes are updated.",
-    headers: ["CODE", "DESCRIPTION", "MAX_CAPACITY_KG"],
+    description: "Bulk-create storage racks for a department. Existing rack codes are updated. PRODUCT_CODE (optional) is the product the rack holds.",
+    headers: ["CODE", "DESCRIPTION", "MAX_CAPACITY_KG", "PRODUCT_CODE"],
   },
   "rack-stock": {
     title: "Stock count",
