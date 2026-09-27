@@ -174,8 +174,11 @@ export default function ItemsPage() {
     carton_qty: "",
     // Only meaningful for moulded parts — drives the White->Colour
     // routing block on recipes. "" means "not colour-tracked".
-    powder_colour: ""
+    powder_colour: "",
+    // Finished goods only: which client this is made for.
+    client_id: ""
   });
+  const [clients, setClients] = useState<any[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -190,6 +193,7 @@ export default function ItemsPage() {
         api.get('/departments/levels').catch(() => null),
         ItemService.getUnits().catch(() => []),
       ]);
+      api.get('/clients').then((r) => setClients(r.data?.clients || r.data?.data || [])).catch(() => {});
       setItems(itemsRes.data?.data || []);
       setDepartments(deptsRes.data?.data || []);
       setUnits(unitsData);
@@ -210,6 +214,12 @@ export default function ItemsPage() {
   // those are sold, so only those carry a price / client product code.
   const isFinishedGoodDept = (deptId: string) =>
     finalRank !== null && departments.find((d) => String(d.id) === String(deptId))?.level === finalRank;
+
+  const formIsFinishedGood = isFinishedGoodDept(form.department_id);
+  // Columns follow the tab: finished goods show client/price/packing,
+  // a parts/raw-material department shows the material, "All" the dept.
+  const activeDept = departments.find((d) => d.name === activeTab);
+  const tabIsFinishedGood = !!activeDept && isFinishedGoodDept(activeDept.id);
 
   const getDepartmentName = (id: string) => {
     return departments.find(d => String(d.id) === String(id))?.name || "-";
@@ -238,14 +248,16 @@ export default function ItemsPage() {
         price: String(item.price || ""),
         box_qty: String(item.box_qty || ""),
         carton_qty: String(item.carton_qty || ""),
-        powder_colour: item.powder_colour || ""
+        powder_colour: item.powder_colour || "",
+        client_id: item.client_id || ""
       });
     } else {
       setSelectedItem(null);
       setForm({
         item_code: "", oem_company_code: "", department_id: "", unit_of_measure: "pcs",
         name: "", description: "", category: "", subcategory: "", pcs_per_scan: "1", price: "", box_qty: "", carton_qty: "",
-        powder_colour: ""
+        powder_colour: "",
+        client_id: ""
       });
     }
     setEditModalVisible(true);
@@ -285,9 +297,10 @@ export default function ItemsPage() {
         // or client code.
         price: finishedGood ? parseFloat(form.price) || 0.0 : 0.0,
         oem_company_code: finishedGood ? form.oem_company_code : "",
-        pcs_per_scan: parseInt(form.pcs_per_scan) || 1,
-        box_qty: parseInt(form.box_qty) || 0,
-        carton_qty: parseInt(form.carton_qty) || 0,
+        client_id: finishedGood ? form.client_id || undefined : undefined,
+        pcs_per_scan: finishedGood ? parseInt(form.pcs_per_scan) || 1 : 1,
+        box_qty: finishedGood ? parseInt(form.box_qty) || 0 : 0,
+        carton_qty: finishedGood ? parseInt(form.carton_qty) || 0 : 0,
         confirm_code_change: confirmCodeChange,
       };
 
@@ -350,10 +363,22 @@ export default function ItemsPage() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tableWrapper}>
           <View style={styles.tableCard}>
             <View style={styles.tableHeader}>
-              <SortableHeaderCell label="CODE" active={sortKey === "item_code"} direction={sortDir} onPress={() => toggleSort("item_code")} textStyle={styles.columnHeader} containerStyle={{ width: 100 }} />
-              <SortableHeaderCell label="CLIENT CODE" active={sortKey === "oem_company_code"} direction={sortDir} onPress={() => toggleSort("oem_company_code")} textStyle={styles.columnHeader} containerStyle={{ width: 120 }} />
+              <SortableHeaderCell label="CODE" active={sortKey === "item_code"} direction={sortDir} onPress={() => toggleSort("item_code")} textStyle={styles.columnHeader} containerStyle={{ width: 110 }} />
               <SortableHeaderCell label="NAME" active={sortKey === "name"} direction={sortDir} onPress={() => toggleSort("name")} textStyle={styles.columnHeader} containerStyle={{ flex: 1, minWidth: 200 }} />
-              <Text style={[styles.columnHeader, { width: 150 }]}>DEPARTMENT</Text>
+              {tabIsFinishedGood ? (
+                <>
+                  <SortableHeaderCell label="CLIENT" active={sortKey === "client_name"} direction={sortDir} onPress={() => toggleSort("client_name")} textStyle={styles.columnHeader} containerStyle={{ width: 130 }} />
+                  <SortableHeaderCell label="CLIENT CODE" active={sortKey === "oem_company_code"} direction={sortDir} onPress={() => toggleSort("oem_company_code")} textStyle={styles.columnHeader} containerStyle={{ width: 110 }} />
+                  <SortableHeaderCell label="PRICE" active={sortKey === "price"} direction={sortDir} onPress={() => toggleSort("price")} textStyle={styles.columnHeader} containerStyle={{ width: 80 }} />
+                  <SortableHeaderCell label="BOX" active={sortKey === "box_qty"} direction={sortDir} onPress={() => toggleSort("box_qty")} textStyle={styles.columnHeader} containerStyle={{ width: 60 }} />
+                  <SortableHeaderCell label="CARTON" active={sortKey === "carton_qty"} direction={sortDir} onPress={() => toggleSort("carton_qty")} textStyle={styles.columnHeader} containerStyle={{ width: 70 }} />
+                  <SortableHeaderCell label="PCS/SCAN" active={sortKey === "pcs_per_scan"} direction={sortDir} onPress={() => toggleSort("pcs_per_scan")} textStyle={styles.columnHeader} containerStyle={{ width: 80 }} />
+                </>
+              ) : activeDept ? (
+                <SortableHeaderCell label="MATERIAL" active={sortKey === "powder_colour"} direction={sortDir} onPress={() => toggleSort("powder_colour")} textStyle={styles.columnHeader} containerStyle={{ width: 110 }} />
+              ) : (
+                <Text style={[styles.columnHeader, { width: 150 }]}>DEPARTMENT</Text>
+              )}
               <SortableHeaderCell label="UNIT" active={sortKey === "unit_of_measure"} direction={sortDir} onPress={() => toggleSort("unit_of_measure")} textStyle={styles.columnHeader} containerStyle={{ width: 80 }} />
               <Text style={[styles.columnHeader, { width: 100, textAlign: 'right' }]}>ACTIONS</Text>
             </View>
@@ -367,15 +392,26 @@ export default function ItemsPage() {
             ) : (
               pagination.pageRows.map((item) => (
                 <View key={item.id} style={styles.tableRow}>
-                  <Text style={[styles.cellText, { width: 100, fontWeight: "600", color: "#111111" }]}>{item.item_code}</Text>
-                  <Text style={[styles.cellText, { width: 120, color: "#6B7280" }]}>{item.oem_company_code || "-"}</Text>
+                  <Text style={[styles.cellText, { width: 110, fontWeight: "600", color: "#111111" }]}>{item.item_code}</Text>
                   <Text style={[styles.cellText, { flex: 1, minWidth: 200 }]}>{item.name}</Text>
-
-                  <View style={{ width: 150, alignItems: "flex-start" }}>
-                    <View style={styles.typeBadge}>
-                      <Text style={styles.typeBadgeText}>{getDepartmentName(item.department_id)}</Text>
+                  {tabIsFinishedGood ? (
+                    <>
+                      <Text style={[styles.cellText, { width: 130 }]} numberOfLines={1}>{item.client_name || "-"}</Text>
+                      <Text style={[styles.cellText, { width: 110, color: "#6B7280" }]}>{item.oem_company_code || "-"}</Text>
+                      <Text style={[styles.cellText, { width: 80 }]}>{item.price ? `₹${item.price}` : "-"}</Text>
+                      <Text style={[styles.cellText, { width: 60 }]}>{item.box_qty || "-"}</Text>
+                      <Text style={[styles.cellText, { width: 70 }]}>{item.carton_qty || "-"}</Text>
+                      <Text style={[styles.cellText, { width: 80 }]}>{item.pcs_per_scan || 1}</Text>
+                    </>
+                  ) : activeDept ? (
+                    <Text style={[styles.cellText, { width: 110 }]}>{item.powder_colour || "-"}</Text>
+                  ) : (
+                    <View style={{ width: 150, alignItems: "flex-start" }}>
+                      <View style={styles.typeBadge}>
+                        <Text style={styles.typeBadgeText}>{getDepartmentName(item.department_id)}</Text>
+                      </View>
                     </View>
-                  </View>
+                  )}
 
                   <View style={{ width: 80, alignItems: "flex-start" }}>
                     <View style={styles.unitBadge}>
@@ -450,14 +486,23 @@ export default function ItemsPage() {
 
             <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: '80%' }}>
               
-              {/* Row 1: Internal Code & OEM Code */}
+              {/* Always: code, department, name, unit */}
               <View style={styles.formRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.inputLabel}>Internal Code</Text>
-                  <TextInput 
-                    style={styles.textInput} 
-                    value={form.item_code} 
+                  <Text style={styles.inputLabel}>Code</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={form.item_code}
                     onChangeText={(val) => setForm({ ...form, item_code: val })}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <SelectInput
+                    label="Department"
+                    placeholder="Select department"
+                    value={form.department_id}
+                    options={departments}
+                    onSelect={(val: string) => setForm({ ...form, department_id: val })}
                   />
                 </View>
               </View>
@@ -467,15 +512,13 @@ export default function ItemsPage() {
                 </Text>
               )}
 
-              {/* Row 2: Department & Unit */}
               <View style={styles.formRow}>
-                <View style={{ flex: 1 }}>
-                  <SelectInput 
-                    label="Department" 
-                    placeholder="Select department" 
-                    value={form.department_id} 
-                    options={departments} 
-                    onSelect={(val: string) => setForm({ ...form, department_id: val })}
+                <View style={{ flex: 2 }}>
+                  <Text style={styles.inputLabel}>Name</Text>
+                  <TextInput
+                    style={styles.textInput}
+                    value={form.name}
+                    onChangeText={(val) => setForm({ ...form, name: val })}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
@@ -489,131 +532,96 @@ export default function ItemsPage() {
                 </View>
               </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Name</Text>
-                <TextInput 
-                  style={styles.textInput} 
-                  value={form.name} 
-                  onChangeText={(val) => setForm({ ...form, name: val })}
-                />
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Description (optional)</Text>
-                <TextInput
-                  style={[styles.textInput, { height: 72, textAlignVertical: "top" }]}
-                  value={form.description}
-                  multiline
-                  placeholder="Shown next to the product when entering a customer PO"
-                  placeholderTextColor="#9CA3AF"
-                  onChangeText={(val) => setForm({ ...form, description: val })}
-                />
-              </View>
-
-              {isFinishedGoodDept(form.department_id) && (
-                <View style={styles.formRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.inputLabel}>Client's product code</Text>
-                    <TextInput
-                      style={styles.textInput}
-                      value={form.oem_company_code}
-                      placeholder="The code your client uses for this"
-                      placeholderTextColor="#9CA3AF"
-                      onChangeText={(val) => setForm({ ...form, oem_company_code: val })}
-                    />
-                    <Text style={styles.helperTextSmall}>Pre-filled on customer POs. Can be overridden per client on the PO itself.</Text>
+              {formIsFinishedGood ? (
+                <>
+                  {/* Finished goods: client, client's code, price, packing */}
+                  <View style={styles.formRow}>
+                    <View style={{ flex: 1 }}>
+                      <SelectInput
+                        label="Client (OEM company)"
+                        placeholder="Select client"
+                        value={form.client_id}
+                        options={clients}
+                        onSelect={(val: string) => setForm({ ...form, client_id: val })}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.inputLabel}>Client's product code</Text>
+                      <TextInput
+                        style={styles.textInput}
+                        value={form.oem_company_code}
+                        placeholder="e.g. HA 101"
+                        placeholderTextColor="#9CA3AF"
+                        onChangeText={(val) => setForm({ ...form, oem_company_code: val })}
+                      />
+                    </View>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.inputLabel}>Price</Text>
+                  <Text style={[styles.helperTextSmall, { marginTop: -8, marginBottom: 12 }]}>
+                    The client's code maps straight to this item — used when entering their POs.
+                  </Text>
+
+                  <View style={styles.formRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.inputLabel}>Price</Text>
+                      <TextInput style={styles.textInput} value={form.price} keyboardType="numeric" onChangeText={(val) => setForm({ ...form, price: val })} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.inputLabel}>Pieces per scan</Text>
+                      <TextInput style={styles.textInput} value={form.pcs_per_scan} keyboardType="numeric" onChangeText={(val) => setForm({ ...form, pcs_per_scan: val })} />
+                    </View>
+                  </View>
+
+                  <View style={styles.formRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.inputLabel}>Box qty (pcs per box)</Text>
+                      <TextInput style={styles.textInput} value={form.box_qty} keyboardType="numeric" onChangeText={(val) => setForm({ ...form, box_qty: val })} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.inputLabel}>Carton qty</Text>
+                      <TextInput style={styles.textInput} value={form.carton_qty} keyboardType="numeric" onChangeText={(val) => setForm({ ...form, carton_qty: val })} />
+                    </View>
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Description (optional)</Text>
                     <TextInput
-                      style={styles.textInput}
-                      value={form.price}
-                      keyboardType="numeric"
-                      onChangeText={(val) => setForm({ ...form, price: val })}
+                      style={[styles.textInput, { height: 72, textAlignVertical: "top" }]}
+                      value={form.description}
+                      multiline
+                      placeholder="Shown next to the product when entering a customer PO"
+                      placeholderTextColor="#9CA3AF"
+                      onChangeText={(val) => setForm({ ...form, description: val })}
                     />
+                  </View>
+                </>
+              ) : (
+                <View style={styles.formRow}>
+                  {/* Parts & raw materials: just the material (powder colour) */}
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.inputLabel}>Material</Text>
+                    <View style={{ flexDirection: "row", gap: 8, marginTop: 4 }}>
+                      {["", "White", "Grey", "Black"].map((c) => {
+                        const active = form.powder_colour === c;
+                        return (
+                          <Pressable
+                            key={c || "none"}
+                            style={[styles.colourOption, active && styles.colourOptionActive]}
+                            onPress={() => setForm({ ...form, powder_colour: c })}
+                          >
+                            <Text style={[styles.colourOptionText, active && styles.colourOptionTextActive]}>
+                              {c || "N/A"}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                    <Text style={styles.helperTextSmall}>
+                      Set it on powders; a moulded part picks up its powder's colour when you save its recipe.
+                      White parts can never go to the Colour department.
+                    </Text>
                   </View>
                 </View>
               )}
-
-              <View style={styles.formRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.inputLabel}>Category</Text>
-                  <TextInput 
-                    style={styles.textInput} 
-                    value={form.category} 
-                    onChangeText={(val) => setForm({ ...form, category: val })}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.inputLabel}>Subcategory</Text>
-                  <TextInput 
-                    style={styles.textInput} 
-                    value={form.subcategory} 
-                    onChangeText={(val) => setForm({ ...form, subcategory: val })}
-                  />
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Pieces per scan</Text>
-                <TextInput 
-                  style={styles.textInput} 
-                  value={form.pcs_per_scan} 
-                  keyboardType="numeric"
-                  onChangeText={(val) => setForm({ ...form, pcs_per_scan: val })}
-                />
-                <Text style={[styles.helperTextUnderline, { marginTop: 8 }]}>Standard quantity entered each time this QR is scanned.</Text>
-              </View>
-
-              <View style={styles.formRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.inputLabel}>Box qty (pcs per box)</Text>
-                  <TextInput 
-                    style={styles.textInput} 
-                    value={form.box_qty} 
-                    keyboardType="numeric"
-                    onChangeText={(val) => setForm({ ...form, box_qty: val })}
-                  />
-                </View>
-              </View>
-
-              <View style={styles.formRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.inputLabel}>Carton qty</Text>
-                  <TextInput
-                    style={styles.textInput}
-                    value={form.carton_qty}
-                    keyboardType="numeric"
-                    onChangeText={(val) => setForm({ ...form, carton_qty: val })}
-                  />
-                </View>
-              </View>
-
-              <View style={styles.formRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.inputLabel}>Powder colour</Text>
-                  <View style={{ flexDirection: "row", gap: 8, marginTop: 4 }}>
-                    {["", "White", "Grey", "Black"].map((c) => {
-                      const active = form.powder_colour === c;
-                      return (
-                        <Pressable
-                          key={c || "none"}
-                          style={[styles.colourOption, active && styles.colourOptionActive]}
-                          onPress={() => setForm({ ...form, powder_colour: c })}
-                        >
-                          <Text style={[styles.colourOptionText, active && styles.colourOptionTextActive]}>
-                            {c || "N/A"}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                  <Text style={styles.helperTextSmall}>
-                    Set this on your powders. A moulded part picks up its powder's colour automatically when you save its recipe.
-                    White parts can never go to the Colour department — only Grey or Black.
-                  </Text>
-                </View>
-              </View>
 
             </ScrollView>
 
@@ -650,7 +658,7 @@ const styles = StyleSheet.create({
   tabTextActive: { color: "#111111", fontWeight: "600" },
 
   tableWrapper: { width: "100%" },
-  tableCard: { minWidth: 850, flex: 1, backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 2, overflow: "hidden", minHeight: 300 },
+  tableCard: { minWidth: 1000, flex: 1, backgroundColor: colors.white, borderRadius: 16, borderWidth: 1, borderColor: "#E5E7EB", shadowColor: "#000", shadowOpacity: 0.02, shadowRadius: 10, elevation: 2, overflow: "hidden", minHeight: 300 },
   tableHeader: { flexDirection: "row", backgroundColor: "#F9FAFB", paddingVertical: 14, paddingHorizontal: spacing.xl, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
   columnHeader: { fontSize: 12, fontWeight: "700", color: "#6B7280", letterSpacing: 0.5 },
   
